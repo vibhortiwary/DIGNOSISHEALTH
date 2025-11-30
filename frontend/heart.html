@@ -1,0 +1,685 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heart Disease Prediction</title>
+
+  <style>
+    :root {
+      --bg-deep: #050208;
+      --bg-top: #190014;
+      --bg-panel: rgba(11, 5, 18, 0.96);
+      --glass: rgba(255, 255, 255, 0.06);
+      --glass-strong: rgba(255, 255, 255, 0.16);
+      --border-soft: rgba(255, 255, 255, 0.14);
+      --accent: #ff456c;
+      --accent-soft: #ff8aa4;
+      --accent-strong: #f31260;
+      --text-main: #fdf2f8;
+      --text-soft: #f9a8d4;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      background: radial-gradient(circle at top, #3b0219 0, #050208 55%, #000000 100%);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* === SNOW BACKGROUND === */
+    #snowCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      filter: blur(1px);
+    }
+
+    /* === NAVBAR === */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 10px 26px;
+      background: linear-gradient(90deg, rgba(10, 5, 20, 0.96), rgba(40, 9, 31, 0.95));
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(248, 113, 113, 0.4);
+      z-index: 100;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8);
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .nav-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: radial-gradient(circle at 30% 30%, #ff8ba7 0, #be123c 45%, #020617 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      box-shadow: 0 0 18px rgba(248, 113, 113, 0.75);
+    }
+
+    .nav-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #fee2e2;
+    }
+
+    /* === LAYOUT === */
+    .layout {
+      display: flex;
+      height: 100vh;
+      margin-top: 64px;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 80px;
+      height: calc(100vh - 64px);
+      background: radial-gradient(circle at top, #1f0316 0, #02010a 55%);
+      backdrop-filter: blur(26px);
+      border-right: 1px solid rgba(248, 113, 113, 0.35);
+      padding: 22px 10px 20px;
+      transition: width 0.25s ease;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: inset -4px 0 20px rgba(0, 0, 0, 0.7);
+    }
+
+    .sidebar:hover { width: 240px; }
+
+    .sb-group,
+    .sb-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sb-link {
+      padding: 11px 13px;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 15px;
+      color: #fee2e2;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(248, 113, 113, 0.55);
+      transition: 0.18s ease;
+      white-space: nowrap;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7);
+    }
+
+    .sb-link span.icon-box {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 30% 30%, #fb7185 0, #b91c1c 65%);
+      font-size: 15px;
+    }
+
+    .sb-link.active {
+      background: radial-gradient(circle at top left, rgba(248, 113, 113, 0.4), rgba(15, 23, 42, 0.95));
+      border-color: #fb7185;
+      box-shadow: 0 0 20px rgba(248, 113, 113, 0.7);
+    }
+
+    .sb-link:hover {
+      transform: translateX(4px);
+      background: radial-gradient(circle at top left, rgba(248, 113, 113, 0.35), rgba(15, 23, 42, 0.9));
+      box-shadow: 0 0 20px rgba(248, 113, 113, 0.75);
+    }
+
+    .sidebar:not(:hover) .sb-text {
+      opacity: 0;
+      width: 0;
+      overflow: hidden;
+    }
+
+    /* MAIN CONTENT */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 26px 34px 28px;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 18px;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #fecaca, #fb7185, #fecaca);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: #fecaca;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
+
+    .model-pill {
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 4px 12px;
+      border: 1px solid rgba(252, 165, 165, 0.8);
+      color: #fee2e2;
+      background: rgba(127, 29, 29, 0.7);
+      box-shadow: 0 0 16px rgba(248, 113, 113, 0.55);
+      white-space: nowrap;
+    }
+
+    /* CARD */
+    .card {
+      width: 100%;
+      max-width: 1240px;
+      margin: 4px auto 0;
+      padding: 26px 30px 24px;
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at top left, rgba(248, 113, 113, 0.24), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.7), transparent 60%),
+        rgba(14, 8, 19, 0.96);
+      border: 1px solid rgba(254, 202, 202, 0.4);
+      box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.9),
+        0 0 30px rgba(248, 113, 113, 0.5);
+      backdrop-filter: blur(20px);
+    }
+
+    .section-title {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 18px;
+      color: #fee2e2;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px 28px;
+    }
+
+    @media (max-width: 1150px) {
+      .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 830px) {
+      .layout { flex-direction: column; }
+      .sidebar { display: none; }
+      .main { padding: 22px 18px 24px; }
+      .card { padding: 20px 18px 22px; border-radius: 22px; }
+      .form-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .field-label {
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #ffe4e6;
+    }
+
+    .field-hint {
+      font-size: 11px;
+      opacity: 0.75;
+      margin-top: 4px;
+      color: #fecaca;
+    }
+
+    .field-input,
+    select.field-input {
+      width: 100%;
+      padding: 11px 13px;
+      border-radius: 11px;
+      border: 1px solid rgba(254, 202, 202, 0.5);
+      background: rgba(15, 23, 42, 0.95);
+      color: #fee2e2;
+      font-size: 15px;
+      outline: none;
+      transition: 0.15s ease;
+    }
+
+    .field-input::placeholder {
+      color: rgba(254, 202, 202, 0.6);
+    }
+
+    .field-input:focus {
+      border-color: #fb7185;
+      box-shadow:
+        0 0 0 1px rgba(248, 113, 113, 0.7),
+        0 0 18px rgba(248, 113, 113, 0.6);
+      background: rgba(15, 23, 42, 0.98);
+    }
+
+    select.field-input {
+      appearance: none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, #fecaca 50%),
+        linear-gradient(135deg, #fecaca 50%, transparent 50%);
+      background-position:
+        calc(100% - 14px) 16px,
+        calc(100% - 9px) 16px;
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      font-size: 11px;
+      opacity: 0.7;
+      color: #fecaca;
+      text-align: center;
+    }
+
+    .predict-row {
+      margin-top: 22px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .model-chip {
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(254, 226, 226, 0.7);
+      background: rgba(24, 24, 27, 0.8);
+      color: #fee2e2;
+      opacity: 0.9;
+    }
+
+    .btn-primary {
+      padding: 12px 24px;
+      border-radius: 999px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      background: linear-gradient(90deg, #fb7185, #f97373, #fb7185);
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.85),
+        0 0 28px rgba(248, 113, 113, 0.85);
+      transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.06);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+      box-shadow:
+        0 12px 26px rgba(0, 0, 0, 0.9),
+        0 0 18px rgba(248, 113, 113, 0.8);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.7;
+      cursor: wait;
+      box-shadow: none;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- NAVBAR -->
+  <div class="navbar">
+    <div class="nav-left" onclick="location.href='dashboard.html'">
+      <div class="nav-logo">❤️</div>
+      <div>
+        <div class="nav-title">Hybrid AI Diagnostics System</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SNOW BACKGROUND -->
+  <canvas id="snowCanvas"></canvas>
+
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sb-group">
+        <div class="sb-link active" onclick="location.href='heart.html'">
+          <span class="icon-box">❤️</span>
+          <span class="sb-text">Heart Disease</span>
+        </div>
+        <div class="sb-link" onclick="location.href='diabetes.html'">
+          <span class="icon-box">💉</span>
+          <span class="sb-text">Diabetes</span>
+        </div>
+        <div class="sb-link" onclick="location.href='breast.html'">
+          <span class="icon-box">🎀</span>
+          <span class="sb-text">Breast Cancer</span>
+        </div>
+        <div class="sb-link" onclick="location.href='brain.html'">
+          <span class="icon-box">🧠</span>
+          <span class="sb-text">Brain Tumor</span>
+        </div>
+      </div>
+
+      <div class="sb-bottom">
+        <div class="sb-link" onclick="location.href='history.html'">
+          <span class="icon-box">📜</span>
+          <span class="sb-text">History</span>
+        </div>
+        <div class="sb-link" onclick="logout()">
+          <span class="icon-box">🚪</span>
+          <span class="sb-text">Logout</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Heart Disease Prediction</div>
+          <div class="page-subtitle">
+            Enter clinical parameters to estimate coronary artery disease (CAD) risk.
+          </div>
+        </div>
+        <div class="model-pill">Model: XGBoost · Trained on UCI Heart dataset</div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Patient Parameters</h2>
+
+        <form id="heartForm" onsubmit="event.preventDefault(); predictHeart();">
+          <div class="form-grid">
+
+  <div>
+    <div class="field-label">Your Age (in years)</div>
+    <input id="age" type="number" class="field-input" placeholder="e.g., 54" min="18" max="100" />
+    <div class="field-hint">Age helps estimate heart risk.</div>
+  </div>
+
+  <div>
+    <div class="field-label">Gender</div>
+    <select id="sex" class="field-input">
+      <option value="1">Male</option>
+      <option value="0">Female</option>
+    </select>
+    <div class="field-hint">Used by medical model.</div>
+  </div>
+
+  <div>
+    <div class="field-label">Type of Chest Pain</div>
+    <select id="cp" class="field-input">
+      <option value="0">Mild Chest Pain (Typical)</option>
+      <option value="1">Unusual Chest Pain</option>
+      <option value="2">Not Heart-Related Pain</option>
+      <option value="3">No Pain / Silent Symptoms</option>
+    </select>
+    <div class="field-hint">Higher types mean more unusual symptoms.</div>
+  </div>
+
+  <div>
+    <div class="field-label">Resting Blood Pressure</div>
+    <input id="trestbps" type="number" class="field-input" placeholder="Normal ~120" />
+    <div class="field-hint">BP when resting (mmHg).</div>
+  </div>
+
+  <div>
+    <div class="field-label">Cholesterol Level</div>
+    <input id="chol" type="number" class="field-input" placeholder="Normal ~200" />
+    <div class="field-hint">High cholesterol increases risk.</div>
+  </div>
+
+  <div>
+    <div class="field-label">High Fasting Sugar?</div>
+    <select id="fbs" class="field-input">
+      <option value="0">No (Normal)</option>
+      <option value="1">Yes (Sugar > 120 mg/dL)</option>
+    </select>
+    <div class="field-hint">Higher sugar increases heart stress.</div>
+  </div>
+
+  <div>
+    <div class="field-label">ECG Result (Resting)</div>
+    <select id="restecg" class="field-input">
+      <option value="0">Normal</option>
+      <option value="1">Minor ECG Changes</option>
+      <option value="2">Major ECG Changes</option>
+    </select>
+    <div class="field-hint">Heart electrical activity at rest.</div>
+  </div>
+
+  <div>
+    <div class="field-label">Max Heart Rate (during exercise)</div>
+    <input id="thalach" type="number" class="field-input" placeholder="e.g., 162" />
+    <div class="field-hint">Higher = better heart performance.</div>
+  </div>
+
+  <div>
+    <div class="field-label">Chest Pain During Exercise?</div>
+    <select id="exang" class="field-input">
+      <option value="0">No</option>
+      <option value="1">Yes</option>
+    </select>
+    <div class="field-hint">Indicates exercise-induced angina.</div>
+  </div>
+
+  <div>
+    <div class="field-label">Exercise Stress Value (Oldpeak)</div>
+    <input id="oldpeak" type="number" step="0.1" class="field-input" placeholder="e.g., 1.2" />
+    <div class="field-hint">Higher = more ECG depression after exercise.</div>
+  </div>
+
+  <div>
+    <div class="field-label">Heart Recovery Pattern</div>
+    <select id="slope" class="field-input">
+      <option value="0">Healthy (Upsloping)</option>
+      <option value="1">Average (Flat)</option>
+      <option value="2">Risky (Downsloping)</option>
+    </select>
+    <div class="field-hint">Shape of ECG during recovery.</div>
+  </div>
+
+  <div>
+    <div class="field-label">Number of Blocked Vessels</div>
+    <select id="ca" class="field-input">
+      <option value="0">0 — None</option>
+      <option value="1">1 Blocked Vessel</option>
+      <option value="2">2 Blocked Vessels</option>
+      <option value="3">3 Blocked Vessels</option>
+    </select>
+    <div class="field-hint">More blockages = higher risk.</div>
+  </div>
+
+  <div>
+    <div class="field-label">Thalassemia Type</div>
+    <select id="thal" class="field-input">
+      <option value="1">Normal</option>
+      <option value="2">Fixed Defect</option>
+      <option value="3">Reversible Defect</option>
+    </select>
+    <div class="field-hint">Blood condition affecting oxygen flow.</div>
+  </div>
+
+</div>
+
+
+          <div class="footer-note">
+            All parameters are combined by the model to compute an estimated risk score.
+            This is an AI aid, not a diagnosis.
+          </div>
+
+          <div class="predict-row">
+            <div class="model-chip">Hybrid: ML + Rule Engine + Advisory Text</div>
+            <button id="predictBtn" class="btn-primary" type="submit">
+              Predict
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const BACKEND = "http://127.0.0.1:8000";
+
+    // ===== Auth check =====
+    async function checkAuth() {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        location.href = "login.html";
+        return;
+      }
+      try {
+        const r = await fetch(BACKEND + "/auth/me", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!r.ok) {
+          localStorage.removeItem("token");
+          location.href = "login.html";
+        }
+      } catch (e) {
+        localStorage.removeItem("token");
+        location.href = "login.html";
+      }
+    }
+    checkAuth();
+
+    function logout() {
+      localStorage.removeItem("token");
+      location.href = "login.html";
+    }
+
+    // ===== Snow / star background =====
+    const snowCanvas = document.getElementById("snowCanvas");
+    const sctx = snowCanvas.getContext("2d");
+
+    function resizeSnow() {
+      snowCanvas.width = window.innerWidth;
+      snowCanvas.height = window.innerHeight;
+    }
+    resizeSnow();
+    window.addEventListener("resize", resizeSnow);
+
+    const flakes = [];
+    for (let i = 0; i < 160; i++) {
+      flakes.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        r: Math.random() * 2 + 1,
+        v: Math.random() * 0.7 + 0.3,
+      });
+    }
+
+    (function drawSnow() {
+      sctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      sctx.fillStyle = "rgba(255,255,255,0.9)";
+      for (const f of flakes) {
+        sctx.beginPath();
+        sctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        sctx.fill();
+        f.y += f.v;
+        if (f.y > window.innerHeight) {
+          f.y = -10;
+          f.x = Math.random() * window.innerWidth;
+        }
+      }
+      requestAnimationFrame(drawSnow);
+    })();
+
+    // ===== Predict & redirect to result page =====
+    async function predictHeart() {
+      const token = localStorage.getItem("token");
+      const btn = document.getElementById("predictBtn");
+      btn.disabled = true;
+      btn.textContent = "Predicting…";
+
+      const data = {
+        age: Number(document.getElementById("age").value || 0),
+        sex: Number(document.getElementById("sex").value || 0),
+        cp: Number(document.getElementById("cp").value || 0),
+        trestbps: Number(document.getElementById("trestbps").value || 0),
+        chol: Number(document.getElementById("chol").value || 0),
+        fbs: Number(document.getElementById("fbs").value || 0),
+        restecg: Number(document.getElementById("restecg").value || 0),
+        thalach: Number(document.getElementById("thalach").value || 0),
+        exang: Number(document.getElementById("exang").value || 0),
+        oldpeak: Number(document.getElementById("oldpeak").value || 0),
+        slope: Number(document.getElementById("slope").value || 0),
+        ca: Number(document.getElementById("ca").value || 0),
+        thal: Number(document.getElementById("thal").value || 0),
+      };
+
+      try {
+        const res = await fetch(BACKEND + "/predict/heart", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ data }),
+        });
+
+        const out = await res.json();
+
+        if (!res.ok) {
+          alert("Prediction error: " + (out.detail || "Unknown error"));
+          btn.disabled = false;
+          btn.textContent = "Predict";
+          return;
+        }
+
+        // Store full result in localStorage and move to result page
+        localStorage.setItem("heartResult", JSON.stringify({
+    backend: out,
+    inputs: data
+}));
+
+        location.href = "heart_result.html";
+      } catch (err) {
+        alert("Network error: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Predict";
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Python env
+.venv/
+__pycache__/
+
+# VS Code config
+.vscode/
+
+# Database file
+backend/diagnostics.db
+
+# Generated images & temp stuff
+backend/reports/
+backend/gradcam/
+backend/temp/
+
+# Build caches
+*.pyc

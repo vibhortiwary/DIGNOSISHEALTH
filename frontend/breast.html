@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Breast Cancer Prediction</title>
+
+  <style>
+    :root {
+      --bg-deep: #070019;
+      --bg-top: #2b0024;
+      --card-bg: rgba(24, 5, 32, 0.96);
+      --border-soft: rgba(252, 231, 243, 0.55);
+      --accent: #fb6fbb;
+      --accent-soft: #fecdd3;
+      --accent-strong: #f31260;
+      --text-main: #fff0f6;
+      --text-soft: #fed7e2;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      background: radial-gradient(circle at top, #5b0c4a 0, #190018 50%, #050009 100%);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* Snow / star background */
+    #snowCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      filter: blur(1px);
+    }
+
+    /* NAVBAR */
+    .navbar {
+      width: 100%;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 10px 26px;
+      background: linear-gradient(90deg, rgba(40, 0, 28, 0.96), rgba(74, 6, 54, 0.96));
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(251, 113, 133, 0.5);
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .nav-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: radial-gradient(circle at 30% 30%, #fed7e2 0, #f472b6 45%, #1f0032 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 22px;
+      box-shadow: 0 0 18px rgba(251, 113, 133, 0.85);
+    }
+
+    .nav-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #ffe4e6;
+    }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      height: 100vh;
+      margin-top: 64px;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 80px;
+      height: calc(100vh - 64px);
+      background: radial-gradient(circle at top, #2d021f 0, #090012 55%);
+      backdrop-filter: blur(24px);
+      border-right: 1px solid rgba(251, 113, 133, 0.45);
+      padding: 22px 10px 20px;
+      transition: width 0.25s ease;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: inset -4px 0 22px rgba(0, 0, 0, 0.75);
+    }
+
+    .sidebar:hover { width: 240px; }
+
+    .sb-group,
+    .sb-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sb-link {
+      padding: 11px 13px;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 15px;
+      color: #ffe4e6;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(251, 113, 133, 0.6);
+      transition: 0.18s ease;
+      white-space: nowrap;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.8);
+    }
+
+    .sb-link span.icon-box {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 30% 30%, #fb7185 0, #be185d 65%);
+      font-size: 15px;
+    }
+
+    .sb-link.active {
+      background: radial-gradient(circle at top left, rgba(251, 113, 133, 0.5), rgba(15, 23, 42, 0.96));
+      border-color: #fb7185;
+      box-shadow: 0 0 22px rgba(251, 113, 133, 0.9);
+    }
+
+    .sb-link:hover {
+      transform: translateX(4px);
+      background: radial-gradient(circle at top left, rgba(251, 113, 133, 0.4), rgba(15, 23, 42, 0.95));
+      box-shadow: 0 0 22px rgba(251, 113, 133, 0.9);
+    }
+
+    .sidebar:not(:hover) .sb-text {
+      opacity: 0;
+      width: 0;
+      overflow: hidden;
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 26px 34px 30px;
+    }
+
+    @media (max-width: 830px) {
+      .layout { flex-direction: column; }
+      .sidebar { display: none; }
+      .main { padding: 22px 18px 26px; }
+    }
+
+    .page-header {
+      margin-bottom: 18px;
+    }
+
+    .page-title {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #ffe4e6, #f9a8d4, #fecaca);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-top: 5px;
+    }
+
+    .page-pill-row {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 4px 11px;
+      border: 1px solid rgba(252, 231, 243, 0.7);
+      background: rgba(24, 24, 27, 0.85);
+      color: #ffe4e6;
+    }
+
+    /* CARD */
+    .card {
+      width: 100%;
+      max-width: 1240px;
+      margin: 4px auto 0;
+      padding: 26px 30px 26px;
+      border-radius: 26px;
+      background:
+        radial-gradient(circle at top left, rgba(251, 113, 133, 0.26), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(24, 10, 35, 0.9), transparent 60%),
+        rgba(17, 6, 26, 0.98);
+      border: 1px solid rgba(252, 231, 243, 0.6);
+      box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.95),
+        0 0 30px rgba(251, 113, 133, 0.7);
+      backdrop-filter: blur(20px);
+    }
+
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: #ffe4e6;
+    }
+
+    .card-caption {
+      font-size: 13px;
+      color: rgba(254, 202, 232, 0.9);
+      margin-bottom: 18px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px 28px;
+    }
+
+    @media (max-width: 1150px) {
+      .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 830px) {
+      .form-grid { grid-template-columns: minmax(0, 1fr); }
+      .card { padding: 20px 18px 22px; border-radius: 22px; }
+    }
+
+    .field-label {
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #ffe4e6;
+    }
+
+    .field-hint {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 4px;
+      color: #fecdd3;
+    }
+
+    .field-input {
+      width: 100%;
+      padding: 11px 13px;
+      border-radius: 11px;
+      border: 1px solid rgba(252, 231, 243, 0.55);
+      background: rgba(24, 10, 35, 0.95);
+      color: #ffe4e6;
+      font-size: 15px;
+      outline: none;
+      transition: 0.15s ease;
+    }
+
+    .field-input::placeholder {
+      color: rgba(252, 231, 243, 0.7);
+    }
+
+    .field-input:focus {
+      border-color: #fb7185;
+      box-shadow:
+        0 0 0 1px rgba(251, 113, 133, 0.8),
+        0 0 18px rgba(251, 113, 133, 0.8);
+      background: rgba(24, 10, 35, 0.98);
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      font-size: 11px;
+      color: #fecdd3;
+      opacity: 0.85;
+      text-align: center;
+    }
+
+    .predict-row {
+      margin-top: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .model-chip {
+      font-size: 11px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(252, 231, 243, 0.9);
+      background: rgba(30, 64, 175, 0.3);
+      color: #e0e7ff;
+    }
+
+    .btn-primary {
+      padding: 12px 24px;
+      border-radius: 999px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      background: linear-gradient(90deg, #fb7185, #f973b7, #fb7185);
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.85),
+        0 0 28px rgba(251, 113, 133, 0.95);
+      transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.06);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+      box-shadow:
+        0 12px 26px rgba(0, 0, 0, 0.9),
+        0 0 18px rgba(251, 113, 133, 0.9);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.7;
+      cursor: wait;
+      box-shadow: none;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- NAVBAR -->
+  <div class="navbar">
+    <div class="nav-left" onclick="location.href='dashboard.html'">
+      <div class="nav-logo">🎗️</div>
+      <div class="nav-title">Hybrid AI Diagnostics System</div>
+    </div>
+  </div>
+
+  <!-- Snow / stars -->
+  <canvas id="snowCanvas"></canvas>
+
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sb-group">
+        <div class="sb-link" onclick="location.href='heart.html'">
+          <span class="icon-box">❤️</span>
+          <span class="sb-text">Heart Disease</span>
+        </div>
+        <div class="sb-link" onclick="location.href='diabetes.html'">
+          <span class="icon-box">💉</span>
+          <span class="sb-text">Diabetes</span>
+        </div>
+        <div class="sb-link active" onclick="location.href='breast.html'">
+          <span class="icon-box">🎗️</span>
+          <span class="sb-text">Breast Cancer</span>
+        </div>
+        <div class="sb-link" onclick="location.href='brain.html'">
+          <span class="icon-box">🧠</span>
+          <span class="sb-text">Brain Tumor</span>
+        </div>
+      </div>
+
+      <div class="sb-bottom">
+        <div class="sb-link" onclick="location.href='history.html'">
+          <span class="icon-box">📜</span>
+          <span class="sb-text">History</span>
+        </div>
+        <div class="sb-link" onclick="logout()">
+          <span class="icon-box">🚪</span>
+          <span class="sb-text">Logout</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main">
+      <header class="page-header">
+        <div class="page-title">
+          <span>Breast Cancer Prediction</span>
+        </div>
+        <div class="page-subtitle">
+          Enter key tumor measurements to estimate the likelihood of a malignant breast lesion.
+        </div>
+        <div class="page-pill-row">
+          <span class="pill">Model: XGBoost · WDBC features</span>
+          <span class="pill">Task: Benign vs Malignant</span>
+        </div>
+      </header>
+
+      <section class="card">
+        <div class="card-title">Tumor Feature Inputs</div>
+        <div class="card-caption">
+          These measurements are typically obtained from imaging / pathology reports. Use available values; missing values will be estimated by the model.
+        </div>
+
+        <form id="breastForm" onsubmit="event.preventDefault(); predictBreast();">
+          <div class="form-grid">
+            <!-- Using features that exist in normal_ranges.json -->
+            <div>
+              <div class="field-label">Radius (mean)</div>
+              <input id="radius_mean" type="number" step="0.01" class="field-input" placeholder="e.g., 14.5" />
+              <div class="field-hint">Average radius of the mass (mm).</div>
+            </div>
+
+            <div>
+              <div class="field-label">Texture (mean)</div>
+              <input id="texture_mean" type="number" step="0.01" class="field-input" placeholder="e.g., 19.2" />
+              <div class="field-hint">Variation in gray-scale intensity.</div>
+            </div>
+
+            <div>
+              <div class="field-label">Perimeter (mean)</div>
+              <input id="perimeter_mean" type="number" step="0.01" class="field-input" placeholder="e.g., 92.3" />
+              <div class="field-hint">Mean perimeter length of the mass.</div>
+            </div>
+
+            <div>
+              <div class="field-label">Area (mean)</div>
+              <input id="area_mean" type="number" step="0.1" class="field-input" placeholder="e.g., 600.0" />
+              <div class="field-hint">Mean area of the mass (mm²).</div>
+            </div>
+
+            <div>
+              <div class="field-label">Smoothness (mean)</div>
+              <input id="smoothness_mean" type="number" step="0.0001" class="field-input" placeholder="e.g., 0.09" />
+              <div class="field-hint">Local variation in radius lengths.</div>
+            </div>
+
+            <div>
+              <div class="field-label">Compactness (mean)</div>
+              <input id="compactness_mean" type="number" step="0.0001" class="field-input" placeholder="e.g., 0.12" />
+              <div class="field-hint">Measures how compact the mass is.</div>
+            </div>
+
+            <div>
+              <div class="field-label">Concavity (mean)</div>
+              <input id="concavity_mean" type="number" step="0.0001" class="field-input" placeholder="e.g., 0.09" />
+              <div class="field-hint">Severity of concave portions of the contour.</div>
+            </div>
+
+            <div>
+              <div class="field-label">Symmetry (mean)</div>
+              <input id="symmetry_mean" type="number" step="0.0001" class="field-input" placeholder="e.g., 0.18" />
+              <div class="field-hint">Symmetry of the mass shape.</div>
+            </div>
+
+            <div>
+              <div class="field-label">Fractal Dimension (mean)</div>
+              <input id="fractal_dimension_mean" type="number" step="0.0001" class="field-input" placeholder="e.g., 0.06" />
+              <div class="field-hint">“Coastline approximation” – complexity of the border.</div>
+            </div>
+
+            <div>
+              <div class="field-label">Radius (worst)</div>
+              <input id="radius_worst" type="number" step="0.01" class="field-input" placeholder="e.g., 16.3" />
+              <div class="field-hint">Largest (worst) radius measurement.</div>
+            </div>
+          </div>
+
+          <div class="footer-note">
+            The model can still produce a result if some values are missing, but more complete input typically improves reliability.
+          </div>
+
+          <!-- 🔥 RANDOM CASE BUTTON ADDED HERE -->
+          <button type="button"
+            onclick="fillRandomBreastCase()"
+            style="
+              padding: 10px 22px;
+              background: linear-gradient(90deg, #ec4899, #f9a8d4);
+              border: none;
+              border-radius: 999px;
+              color: white;
+              font-weight: 600;
+              cursor: pointer;
+              margin-top: 18px;
+              box-shadow: 0 0 14px rgba(249,168,212,0.6);
+            ">
+            🎲 Auto-Fill Random Case
+          </button>
+
+          <div class="predict-row">
+            <div class="model-chip">Hybrid: ML + Rule Engine + GPT-2 Advisory</div>
+            <button id="predictBtn" class="btn-primary" type="submit">
+              Predict
+            </button>
+          </div>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const BACKEND = "http://127.0.0.1:8000";
+
+    // ==== Auth check ====
+    async function checkAuth() {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        location.href = "login.html";
+        return;
+      }
+      try {
+        const r = await fetch(BACKEND + "/auth/me", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!r.ok) {
+          localStorage.removeItem("token");
+          location.href = "login.html";
+        }
+      } catch (e) {
+        localStorage.removeItem("token");
+        location.href = "login.html";
+      }
+    }
+    checkAuth();
+
+    function logout() {
+      localStorage.removeItem("token");
+      location.href = "login.html";
+    }
+
+    // ==== Snow BG ====
+    const snowCanvas = document.getElementById("snowCanvas");
+    const sctx = snowCanvas.getContext("2d");
+
+    function resizeSnow() {
+      snowCanvas.width = window.innerWidth;
+      snowCanvas.height = window.innerHeight;
+    }
+    resizeSnow();
+    window.addEventListener("resize", resizeSnow);
+
+    const flakes = [];
+    for (let i = 0; i < 160; i++) {
+      flakes.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        r: Math.random() * 2 + 1,
+        v: Math.random() * 0.7 + 0.3,
+      });
+    }
+
+    (function drawSnow() {
+      sctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      sctx.fillStyle = "rgba(255,255,255,0.9)";
+      for (const f of flakes) {
+        sctx.beginPath();
+        sctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        sctx.fill();
+        f.y += f.v;
+        if (f.y > window.innerHeight) {
+          f.y = -10;
+          f.x = Math.random() * window.innerWidth;
+        }
+      }
+      requestAnimationFrame(drawSnow);
+    })();
+
+    // ==== Predict ====
+    async function predictBreast() {
+      const token = localStorage.getItem("token");
+      const btn = document.getElementById("predictBtn");
+      btn.disabled = true;
+      btn.textContent = "Predicting…";
+
+      const data = {
+        radius_mean: document.getElementById("radius_mean").value || null,
+        texture_mean: document.getElementById("texture_mean").value || null,
+        perimeter_mean: document.getElementById("perimeter_mean").value || null,
+        area_mean: document.getElementById("area_mean").value || null,
+        smoothness_mean: document.getElementById("smoothness_mean").value || null,
+        compactness_mean: document.getElementById("compactness_mean").value || null,
+        concavity_mean: document.getElementById("concavity_mean").value || null,
+        symmetry_mean: document.getElementById("symmetry_mean").value || null,
+        fractal_dimension_mean: document.getElementById("fractal_dimension_mean").value || null,
+        radius_worst: document.getElementById("radius_worst").value || null,
+      };
+
+      try {
+        const res = await fetch(BACKEND + "/predict/breast", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ data }),
+        });
+
+        const out = await res.json();
+
+        if (!res.ok) {
+          alert("Prediction error: " + (out.detail || "Unknown error"));
+          btn.disabled = false;
+          btn.textContent = "Predict";
+          return;
+        }
+
+        localStorage.setItem("breastResult", JSON.stringify(out));
+        location.href = "breast_result.html";
+      } catch (err) {
+        alert("Network error: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Predict";
+      }
+    }
+
+    /* =========================
+       🎲 RANDOM VALUE GENERATOR
+       ========================= */
+    function randomInRange(min, max) {
+      return Number((Math.random() * (max - min) + min).toFixed(4));
+    }
+
+    function fillRandomBreastCase() {
+      const data = {
+        radius_mean:              randomInRange(6.0, 25.0),
+        texture_mean:             randomInRange(10.0, 35.0),
+        perimeter_mean:           randomInRange(40.0, 190.0),
+        area_mean:                randomInRange(150.0, 2500.0),
+        smoothness_mean:          randomInRange(0.0500, 0.1500),
+        compactness_mean:         randomInRange(0.0200, 0.4000),
+        concavity_mean:           randomInRange(0.0000, 0.5000),
+        symmetry_mean:            randomInRange(0.1000, 0.3500),
+        fractal_dimension_mean:   randomInRange(0.0400, 0.1000),
+        radius_worst:             randomInRange(7.0, 30.0)
+      };
+
+      Object.keys(data).forEach(id => {
+        document.getElementById(id).value = data[id];
+      });
+
+      alert("🎲 Random realistic tumor values filled!");
+    }
+
+  </script>
+</body>
+</html>

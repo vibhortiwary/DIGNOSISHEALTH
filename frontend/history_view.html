@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>History Details – AI Diagnostics</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root {
+  --bg1: #0a0116;
+  --bg2: #120224;
+  --text: #eef2ff;
+  --accent: #818cf8;
+  --border: rgba(129,140,248,0.4);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: radial-gradient(circle at top, #3f1380 0, #120224 55%, #000 100%);
+  font-family: "Inter", sans-serif;
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* SNOW */
+#snowCanvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.navbar {
+  height: 64px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 10px 26px;
+  background: linear-gradient(90deg, rgba(20,0,60,0.9), rgba(56,18,120,0.95));
+  border-bottom: 1px solid var(--border);
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 20;
+}
+
+.nav-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.main {
+  margin-top: 80px;
+  padding: 20px;
+  height: calc(100vh - 80px);
+  overflow-y: auto;
+  position: relative;
+  z-index: 5;
+}
+
+.card {
+  background: rgba(15, 6, 32, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 22px;
+  margin-bottom: 18px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.85);
+}
+
+.disease-title {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(90deg,#c7d2fe,#818cf8,#6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.tag {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-top: 10px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 16px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 999px;
+  margin-top: 10px;
+}
+
+.progress {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg,#818cf8,#6366f1);
+}
+
+.json-box {
+  padding: 12px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  white-space: pre-wrap;
+  margin-top: 10px;
+  overflow-x: auto;
+}
+
+.gradcam-img {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  margin-top: 16px;
+}
+
+.btn {
+  padding: 12px 18px;
+  background: linear-gradient(90deg,#818cf8,#6366f1);
+  border-radius: 999px;
+  border: none;
+  font-size: 16px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+.back-btn {
+  background: linear-gradient(90deg,#4b5563,#1f2937);
+}
+
+</style>
+</head>
+
+<body>
+
+<canvas id="snowCanvas"></canvas>
+
+<div class="navbar">
+  <div class="nav-title">History Details</div>
+</div>
+
+<main class="main">
+  <div id="detailsContainer"></div>
+</main>
+
+<script>
+const BACKEND = "http://127.0.0.1:8000";
+
+async function loadDetails() {
+  const id = localStorage.getItem("historyViewId");
+  if (!id) return alert("No record selected!");
+
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(`${BACKEND}/history/${id}`, {
+    headers: { Authorization: "Bearer " + token }
+  });
+
+  const r = await res.json();
+
+  let html = `
+    <div class="card">
+      <div class="disease-title">${r.disease.toUpperCase()}</div>
+      <div class="tag">Prediction: <b>${r.prediction}</b></div>
+      <div class="tag">Probability: ${(Number(r.probability) * 100).toFixed(2)}%</div>
+      
+      <div class="progress-bar">
+        <div class="progress" style="width:${Number(r.probability)*100}%"></div>
+      </div>
+
+      <h3 style="margin-top:20px;">Input Data</h3>
+      <div class="json-box">${formatJSON(r.input_data)}</div>
+
+      <h3 style="margin-top:20px;">Grad-CAM</h3>
+      ${r.gradcam_url ? `<img class="gradcam-img" src="${BACKEND + r.gradcam_url}">`
+                      : `<div class="tag">No GradCAM for tabular model</div>`}
+
+      <button class="btn" onclick="openPDF('${r.report_url}')">Open Report PDF</button>
+      <button class="btn back-btn" onclick="goBack()">⬅ Back</button>
+    </div>
+  `;
+
+  document.getElementById("detailsContainer").innerHTML = html;
+}
+
+function formatJSON(txt) {
+  try {
+    return JSON.stringify(JSON.parse(txt), null, 2);
+  } catch {
+    return txt;
+  }
+}
+
+function openPDF(url) {
+  window.open(BACKEND + url, "_blank");
+}
+
+function goBack() {
+  location.href = "history.html";
+}
+
+/* SNOW */
+const c = document.getElementById("snowCanvas");
+const ctx = c.getContext("2d");
+function resize(){ c.width = innerWidth; c.height = innerHeight; }
+resize(); addEventListener("resize", resize);
+
+const flakes = [...Array(150)].map(()=>({
+  x: Math.random()*innerWidth,
+  y: Math.random()*innerHeight,
+  r: Math.random()*2+1,
+  v: Math.random()*1+0.4
+}));
+
+(function animate(){
+  ctx.clearRect(0,0,innerWidth,innerHeight);
+  ctx.fillStyle="rgba(255,255,255,0.9)";
+  flakes.forEach(f=>{
+    ctx.beginPath();
+    ctx.arc(f.x,f.y,f.r,0,Math.PI*2);
+    ctx.fill();
+    f.y+=f.v;
+    if(f.y>innerHeight){f.y=-10; f.x=Math.random()*innerWidth;}
+  });
+  requestAnimationFrame(animate);
+})();
+
+loadDetails();
+</script>
+</body>
+</html>

@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-store" />
+  
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Diagnostics — Login</title>
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    :root{
+      --accent-a:#3aa0ff;
+      --accent-b:#0f63d8;
+      --glass:#ffffff0f;
+      --border:#ffffff22;
+    }
+
+    *{margin:0;padding:0;box-sizing:border-box;}
+
+    /* 🌌 SPACE CADET BACKGROUND */
+    html,body{
+      height:100%;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+      background:#1D2951;
+      background:radial-gradient(circle at top,#273469,#1D2951 55%,#151d36);
+      overflow:hidden;
+      color:#fff;
+    }
+
+    /* ❄ SNOW CANVAS */
+    #snowCanvas{
+      position:fixed;
+      inset:0;
+      width:100%;
+      height:100%;
+      z-index:1;
+      filter:blur(0.8px);
+      pointer-events:none;
+    }
+
+    /* MAIN FRAME */
+    .frame{
+      position:relative;
+      z-index:5;
+      max-width:1200px;
+      margin:48px auto;
+      padding:24px;
+      border-radius:26px;
+      background:rgba(9,12,28,0.85);
+      backdrop-filter:blur(18px) saturate(150%);
+      border:1px solid rgba(255,255,255,0.14);
+      box-shadow:0 28px 90px rgba(0,0,0,0.8);
+    }
+
+    .content{
+      display:flex;
+      gap:40px;
+      align-items:flex-start;
+    }
+
+    @media(max-width:900px){
+      .content{flex-direction:column;gap:20px;}
+    }
+
+    /* FLIP CARD */
+    .flip-wrap{width:420px;perspective:1200px;}
+    .flip-inner{
+      width:100%;
+      transform-style:preserve-3d;
+      transition:transform 720ms cubic-bezier(.18,.9,.24,1);
+      position:relative;
+    }
+    .flip-wrap.flipped .flip-inner{transform:rotateY(180deg);}
+
+    .face{
+      border-radius:18px;
+      padding:28px;
+      background:var(--glass);
+      border:1px solid var(--border);
+      box-shadow:0 14px 40px rgba(0,0,0,0.7);
+      backface-visibility:hidden;
+      backdrop-filter:blur(22px);
+    }
+    .face.back{
+      position:absolute;
+      inset:0;
+      transform:rotateY(180deg);
+    }
+
+    h2{font-size:24px;margin-bottom:6px;}
+    .lead{font-size:14px;opacity:.8;margin-bottom:10px;}
+
+    label{display:block;margin:10px 0 6px;font-size:14px;}
+    input{
+      width:100%;
+      padding:11px 12px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,0.14);
+      background:rgba(9,11,22,0.9);
+      color:#fff;
+      font-size:14px;
+    }
+    input:focus{
+      outline:none;
+      border-color:var(--accent-a);
+      box-shadow:0 0 0 2px rgba(58,160,255,0.3);
+    }
+
+    .btn{
+      width:100%;
+      padding:12px;
+      margin-top:14px;
+      border-radius:10px;
+      border:none;
+      cursor:pointer;
+      font-weight:600;
+      background:linear-gradient(90deg,var(--accent-a),var(--accent-b));
+      color:#fff;
+      box-shadow:0 12px 32px rgba(4,12,40,0.6);
+      transition:transform .15s ease;
+    }
+    .btn:hover{transform:translateY(-2px);}
+    .btn.secondary{
+      background:#fff;
+      color:#111827;
+      box-shadow:0 10px 26px rgba(0,0,0,0.4);
+    }
+
+    .link{
+      color:#4ba7ff;
+      cursor:pointer;
+    }
+
+    .google-container{
+      margin-top:14px;
+      display:flex;
+      justify-content:center;
+    }
+
+    .divider{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin:16px 0;
+      font-size:12px;
+      color:rgba(255,255,255,0.55);
+    }
+    .divider::before,.divider::after{
+      content:"";flex:1;height:1px;
+      background:rgba(255,255,255,0.1);
+    }
+
+    /* RIGHT PANEL */
+    .panel{
+      flex:1;
+      padding-right:8px;
+    }
+    .panel h1{
+      font-size:46px;
+      margin:0 0 10px;
+      background:linear-gradient(90deg,#dbeafe,#9ccaff);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+    .panel p{font-size:15px;opacity:.9;}
+    .tags{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;}
+    .tag{
+      padding:8px 12px;
+      border-radius:999px;
+      background:rgba(15,23,42,0.8);
+      border:1px solid rgba(148,163,184,0.4);
+      font-size:13px;
+    }
+
+    /* TOAST */
+    #toast{
+      position:fixed;
+      top:18px;right:18px;
+      padding:12px 18px;
+      border-radius:10px;
+      background:#ef4444;
+      color:#fff;
+      font-size:14px;
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .25s ease;
+      z-index:999;
+    }
+    #toast.show{opacity:1;}
+
+    /* MODALS */
+    .backdrop{
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,0.65);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:900;
+    }
+    .modal{
+      width:720px;max-width:90%;
+      padding:24px;
+      border-radius:18px;
+      background:rgba(15,23,42,0.95);
+      border:1px solid rgba(148,163,184,0.6);
+      box-shadow:0 24px 60px rgba(0,0,0,0.8);
+    }
+    .modal h3{margin-top:0;margin-bottom:10px;}
+    .modal p{font-size:14px;opacity:.9;margin:4px 0;}
+    .modal .close-btn{
+      float:right;
+      border:none;
+      background:transparent;
+      color:#e5e7eb;
+      font-size:20px;
+      cursor:pointer;
+    }
+
+    .modal input{
+      background:#020617;
+      border-color:#1f2937;
+    }
+
+    @media(max-width:600px){
+      .frame{margin:20px 12px;padding:16px;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ❄ SNOW BACKGROUND -->
+<canvas id="snowCanvas"></canvas>
+
+<div id="toast"></div>
+
+<!-- Learn More Modal -->
+<div id="learnBackdrop" class="backdrop">
+  <div class="modal">
+    <button class="close-btn" id="closeLearn">✕</button>
+    <h3>Hybrid AI Diagnostics System</h3>
+    <p><strong>What it does:</strong> Predicts Heart Disease, Diabetes, Breast Cancer (RandomForest) and Brain Tumor (CNN) with Grad-CAM visualizations, history, and PDF reports.</p>
+    <p><strong>Pipeline:</strong> Tabular models (Random Forest) + CNN for MRI + rule-based engine + GPT-2 style recommendations.</p>
+    <p style="font-size:13px;opacity:.8;"><strong>Disclaimer:</strong> This is an AI advisory tool, not a medical diagnosis. Always consult a clinician.</p>
+  </div>
+</div>
+
+<!-- Forgot Password Modal -->
+<div id="forgotBackdrop" class="backdrop">
+  <div class="modal" style="max-width:420px;">
+    <button class="close-btn" id="closeForgot">✕</button>
+    <h3>Reset password</h3>
+    <p style="font-size:14px;opacity:.85;">Enter your email. If an account exists, a reset link will be sent.</p>
+    <label for="forgot-email" style="margin-top:12px;">Email</label>
+    <input id="forgot-email" type="email" placeholder="you@example.com">
+    <button class="btn" id="forgotSendBtn" style="margin-top:16px;">Send reset link</button>
+  </div>
+</div>
+
+<div class="frame" role="main">
+  <div class="content">
+
+    <!-- LEFT: LOGIN / SIGNUP FLIP -->
+    <div class="flip-wrap" id="flipWrap">
+      <div class="flip-inner">
+
+        <!-- LOGIN FACE -->
+        <div class="face" id="loginFace">
+          <h2>Welcome Back</h2>
+          <div class="lead">AI-powered diagnostics &amp; insights</div>
+
+          <label for="login-email">Email</label>
+          <input id="login-email" type="email" placeholder="you@example.com">
+
+          <label for="login-password">Password</label>
+          <input id="login-password" type="password" placeholder="Enter password">
+
+          <div style="margin-top:8px;font-size:13px;text-align:right;">
+            <span class="link" id="forgotLink">Forgot password?</span>
+          </div>
+
+          <button class="btn" id="loginBtn">Sign In</button>
+
+          <div class="divider">or continue with</div>
+
+          <!-- Google sign-in for LOGIN -->
+          <div class="google-container">
+            <div id="g_id_onload"
+                 data-client_id="875784929853-8kba2q0a3ajov6fevoujiu8q58n7fcru.apps.googleusercontent.com"
+                 data-context="signin"
+                 data-callback="handleGoogleCredential"
+                 data-auto_prompt="false">
+            </div>
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-size="large"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="signin_with"
+                 data-logo_alignment="left">
+            </div>
+          </div>
+
+          <div style="margin-top:16px;font-size:13px;">
+            Don't have an account?
+            <span class="link" id="toSignup">Create one</span>
+          </div>
+        </div>
+
+        <!-- SIGNUP FACE -->
+        <div class="face back" id="signupFace">
+          <h2>Create account</h2>
+          <div class="lead">Sign up to save predictions &amp; reports</div>
+
+          <label for="su-name">Full name</label>
+          <input id="su-name" type="text" placeholder="Your name">
+
+          <label for="su-email">Email</label>
+          <input id="su-email" type="email" placeholder="you@example.com">
+
+          <label for="su-password">Password</label>
+          <input id="su-password" type="password" placeholder="At least 6 characters">
+
+          <button class="btn" id="signupBtn">Create account</button>
+
+          <div class="divider">or</div>
+
+          <!-- Google sign-up (uses same callback, server creates google user) -->
+          <div class="google-container">
+            <div class="g_id_signin"
+                 data-type="standard"
+                 data-size="large"
+                 data-shape="rectangular"
+                 data-theme="outline"
+                 data-text="signup_with"
+                 data-logo_alignment="left">
+            </div>
+          </div>
+
+          <div style="margin-top:16px;font-size:13px;">
+            Already have an account?
+            <span class="link" id="toLogin">Sign in</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: INFO PANEL -->
+    <div class="panel" aria-label="Project info">
+      <h1>AI Diagnostics</h1>
+      <p>Predict risks for Heart Disease, Diabetes, Breast Cancer and Brain Tumor, with visual explanations and downloadable reports.</p>
+
+      <div class="tags">
+        <div class="tag">FastAPI</div>
+        <div class="tag">RandomForest</div>
+        <div class="tag">CNN + Grad-CAM</div>
+      </div>
+
+      <button class="btn secondary" id="learnBtn" style="width:auto;margin-top:18px;padding-inline:16px;">
+        Learn More
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* ========= ❄ SNOW BACKGROUND ========= */
+  const snowCanvas = document.getElementById("snowCanvas");
+  const sctx = snowCanvas.getContext("2d");
+
+  function resizeSnow(){
+    snowCanvas.width = window.innerWidth;
+    snowCanvas.height = window.innerHeight;
+  }
+  resizeSnow();
+  window.addEventListener("resize", resizeSnow);
+
+  const flakes = [];
+  for(let i=0;i<150;i++){
+    flakes.push({
+      x: Math.random()*snowCanvas.width,
+      y: Math.random()*snowCanvas.height,
+      r: Math.random()*2+1,
+      v: Math.random()*0.8+0.4
+    });
+  }
+
+  function drawSnow(){
+    sctx.clearRect(0,0,snowCanvas.width,snowCanvas.height);
+    sctx.fillStyle = "rgba(255,255,255,0.9)";
+    flakes.forEach(f=>{
+      sctx.beginPath();
+      sctx.arc(f.x,f.y,f.r,0,Math.PI*2);
+      sctx.fill();
+      f.y += f.v;
+      if(f.y>snowCanvas.height){
+        f.y = -10;
+        f.x = Math.random()*snowCanvas.width;
+      }
+    });
+    requestAnimationFrame(drawSnow);
+  }
+  drawSnow();
+
+  /* ========= HELPERS ========= */
+  const BACKEND = "http://127.0.0.1:8000";
+
+
+  function qs(id){ return document.getElementById(id); }
+
+  const flipWrap = qs("flipWrap");
+  const toastEl = qs("toast");
+  const learnBackdrop = qs("learnBackdrop");
+  const forgotBackdrop = qs("forgotBackdrop");
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    setTimeout(()=>toastEl.classList.remove("show"), 1800);
+  }
+
+  /* Generic POST helper */
+  async function apiPost(path, body){
+    try{
+      const res = await fetch(BACKEND + path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(body)
+      });
+      const json = await res.json().catch(()=> ({}));
+      return { ok: res.ok, body: json };
+    } catch (e){
+      console.error(e);
+      return { ok:false, body:{} };
+    }
+  }
+
+  /* ========= FLIP LOGIC ========= */
+  qs("toSignup").onclick = ()=> flipWrap.classList.add("flipped");
+  qs("toLogin").onclick  = ()=> flipWrap.classList.remove("flipped");
+
+  /* ========= LEARN MORE MODAL ========= */
+  qs("learnBtn").onclick    = ()=> learnBackdrop.style.display="flex";
+  qs("closeLearn").onclick  = ()=> learnBackdrop.style.display="none";
+  learnBackdrop.onclick     = e=>{ if(e.target===learnBackdrop) learnBackdrop.style.display="none"; };
+
+  /* ========= FORGOT PASSWORD MODAL ========= */
+  qs("forgotLink").onclick   = ()=> forgotBackdrop.style.display="flex";
+  qs("closeForgot").onclick  = ()=> forgotBackdrop.style.display="none";
+  forgotBackdrop.onclick     = e=>{ if(e.target===forgotBackdrop) forgotBackdrop.style.display="none"; };
+
+  qs("forgotSendBtn").onclick = async ()=>{
+    const email = qs("forgot-email").value.trim();
+    if(!email){ toast("Enter your email"); return; }
+    const r = await apiPost("/auth/forgot",{ email });
+    toast(r.body.message || "If this email exists, reset link sent.");
+    forgotBackdrop.style.display="none";
+  };
+
+  /* ========= SIGNUP ========= */
+  qs("signupBtn").onclick = async ()=>{
+    const name  = qs("su-name").value.trim();
+    const email = qs("su-email").value.trim();
+    const pass  = qs("su-password").value.trim();
+
+    if(!email || pass.length < 6){
+      toast("Valid email + 6+ char password required");
+      return;
+    }
+
+    /* exact backend structure: { email, password } */
+    const r = await apiPost("/auth/signup", {
+      email: email,
+      password: pass
+    });
+
+    if(r.ok){
+      toast("Account created. Sign in now.");
+      flipWrap.classList.remove("flipped");
+    } else {
+      toast(r.body.detail || "Signup failed");
+    }
+  };
+
+  /* ========= LOGIN ========= */
+  qs("loginBtn").onclick = async ()=>{
+    const email = qs("login-email").value.trim();
+    const pass  = qs("login-password").value.trim();
+
+    if(!email || !pass){
+      toast("Enter email & password");
+      return;
+    }
+
+    const r = await apiPost("/auth/login", {
+      email: email,
+      password: pass
+    });
+
+    if(r.ok && r.body.access_token){
+      localStorage.setItem("token", r.body.access_token);
+      window.location.href = "dashboard.html";
+    } else {
+      toast(r.body.detail || "Login failed");
+    }
+  };
+
+  /* ========= GOOGLE LOGIN ========= */
+  window.handleGoogleCredential = async function(response){
+    const id_token = response.credential;
+    const r = await apiPost("/auth/google",{ id_token });
+
+    if(r.ok && r.body.access_token){
+      localStorage.setItem("token", r.body.access_token);
+      window.location.href = "dashboard.html";
+    } else {
+      toast(r.body.detail || "Google sign-in failed");
+    }
+  };
+</script>
+
+
+</body>
+</html>

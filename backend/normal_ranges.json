@@ -1,0 +1,133 @@
+{
+  "heart": {
+    "age": {
+      "min": 18,
+      "max": 40,
+      "typical_min": 20,
+      "typical_max": 35,
+      "interpretation": "Younger adults typically have lower baseline cardiovascular risk."
+    },
+    "chol": {
+      "min": 125,
+      "max": 200,
+      "typical_min": 150,
+      "typical_max": 180,
+      "interpretation": "High cholesterol increases the risk of plaque buildup in arteries."
+    },
+    "trestbps": {
+      "min": 90,
+      "max": 130,
+      "typical_min": 110,
+      "typical_max": 120,
+      "interpretation": "Resting blood pressure above 130 indicates hypertension risk."
+    },
+    "thalach": {
+      "min": 100,
+      "max": 180,
+      "typical_min": 130,
+      "typical_max": 160,
+      "interpretation": "Lower maximum heart rate may indicate reduced cardiovascular fitness."
+    }
+  },
+
+  "diabetes": {
+    "Glucose": {
+      "min": 70,
+      "max": 140,
+      "typical_min": 80,
+      "typical_max": 120,
+      "interpretation": "High glucose levels indicate impaired insulin regulation."
+    },
+    "BloodPressure": {
+      "min": 70,
+      "max": 120,
+      "typical_min": 80,
+      "typical_max": 110,
+      "interpretation": "Low or high blood pressure affects diabetes progression risk."
+    },
+    "BMI": {
+      "min": 18.5,
+      "max": 24.9,
+      "typical_min": 19.5,
+      "typical_max": 23.0,
+      "interpretation": "Higher BMI is strongly associated with insulin resistance."
+    }
+  },
+
+  "breast": {
+    "radius_mean": {
+      "min": 6.0,
+      "max": 25.0,
+      "typical_min": 10.0,
+      "typical_max": 18.0,
+      "interpretation": "Larger radius values may indicate irregular or malignant tissue growth."
+    },
+    "texture_mean": {
+      "min": 10.0,
+      "max": 35.0,
+      "typical_min": 14.0,
+      "typical_max": 22.0,
+      "interpretation": "Higher texture values often reflect heterogeneous tissue structures."
+    },
+    "perimeter_mean": {
+      "min": 40.0,
+      "max": 190.0,
+      "typical_min": 60.0,
+      "typical_max": 140.0,
+      "interpretation": "Irregularly large perimeters may suggest abnormal growth patterns."
+    },
+    "area_mean": {
+      "min": 150.0,
+      "max": 2500.0,
+      "typical_min": 300.0,
+      "typical_max": 1200.0,
+      "interpretation": "Larger mass areas are more commonly associated with malignancy."
+    },
+    "smoothness_mean": {
+      "min": 0.05,
+      "max": 0.15,
+      "typical_min": 0.07,
+      "typical_max": 0.12,
+      "interpretation": "Lower smoothness values indicate more irregular masses."
+    },
+    "compactness_mean": {
+      "min": 0.02,
+      "max": 0.40,
+      "typical_min": 0.05,
+      "typical_max": 0.25,
+      "interpretation": "High compactness may indicate dense, irregular tumor boundaries."
+    },
+    "concavity_mean": {
+      "min": 0.00,
+      "max": 0.50,
+      "typical_min": 0.01,
+      "typical_max": 0.25,
+      "interpretation": "Higher values often correlate with malignancy due to inward curvature."
+    },
+    "symmetry_mean": {
+      "min": 0.10,
+      "max": 0.35,
+      "typical_min": 0.12,
+      "typical_max": 0.28,
+      "interpretation": "Symmetry abnormality may indicate irregular tumor shape."
+    },
+    "fractal_dimension_mean": {
+      "min": 0.04,
+      "max": 0.10,
+      "typical_min": 0.05,
+      "typical_max": 0.08,
+      "interpretation": "Higher complexity in fractal dimension might indicate malignancy."
+    },
+    "radius_worst": {
+      "min": 7.0,
+      "max": 30.0,
+      "typical_min": 12.0,
+      "typical_max": 25.0,
+      "interpretation": "Worst-case radius is strongly associated with tumor severity."
+    }
+  },
+
+"brain": {
+    "prediction_confidence": { "min": 0, "max": 1 }
+}
+}

@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Breast Cancer Prediction Result</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg-deep: #070019;
+      --bg-top: #2b0024;
+      --card-bg: rgba(24, 5, 32, 0.97);
+      --border-soft: rgba(252, 231, 243, 0.55);
+      --accent: #fb6fbb;
+      --accent-soft: #fecdd3;
+      --accent-strong: #f31260;
+      --benign-soft: #f9a8d4;
+      --malignant-dark: #be185d;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --text-main: #fff0f6;
+      --text-soft: #fed7e2;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      background: radial-gradient(circle at top, #5b0c4a 0, #190018 50%, #050009 100%);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    #snowCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      filter: blur(1px);
+    }
+
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 10px 26px;
+      background: linear-gradient(90deg, rgba(40, 0, 28, 0.96), rgba(74, 6, 54, 0.96));
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(251, 113, 133, 0.5);
+      z-index: 100;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .nav-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: radial-gradient(circle at 30% 30%, #fed7e2 0, #f472b6 45%, #1f0032 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 22px;
+      box-shadow: 0 0 18px rgba(251, 113, 133, 0.85);
+    }
+
+    .nav-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #ffe4e6;
+    }
+
+    .layout {
+      display: flex;
+      height: 100vh;
+      margin-top: 64px;
+      position: relative;
+      z-index: 5;
+    }
+
+    .sidebar {
+      width: 80px;
+      height: calc(100vh - 64px);
+      background: radial-gradient(circle at top, #2d021f 0, #090012 55%);
+      backdrop-filter: blur(24px);
+      border-right: 1px solid rgba(251, 113, 133, 0.45);
+      padding: 22px 10px 20px;
+      transition: width 0.25s ease;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: inset -4px 0 22px rgba(0, 0, 0, 0.75);
+    }
+
+    .sidebar:hover { width: 240px; }
+
+    .sb-group,
+    .sb-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sb-link {
+      padding: 11px 13px;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 15px;
+      color: #ffe4e6;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(251, 113, 133, 0.6);
+      transition: 0.18s ease;
+      white-space: nowrap;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.8);
+    }
+
+    .sb-link span.icon-box {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 30% 30%, #fb7185 0, #be185d 65%);
+      font-size: 15px;
+    }
+
+    .sb-link.active {
+      background: radial-gradient(circle at top left, rgba(251, 113, 133, 0.5), rgba(15, 23, 42, 0.96));
+      border-color: #fb7185;
+      box-shadow: 0 0 22px rgba(251, 113, 133, 0.9);
+    }
+
+    .sb-link:hover {
+      transform: translateX(4px);
+      background: radial-gradient(circle at top left, rgba(251, 113, 133, 0.4), rgba(15, 23, 42, 0.95));
+      box-shadow: 0 0 22px rgba(251, 113, 133, 0.9);
+    }
+
+    .sidebar:not(:hover) .sb-text {
+      opacity: 0;
+      width: 0;
+      overflow: hidden;
+    }
+
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 26px 34px 30px;
+    }
+
+    @media (max-width: 830px) {
+      .layout { flex-direction: column; }
+      .sidebar { display: none; }
+      .main { padding: 22px 18px 26px; }
+    }
+
+    .page-header {
+      margin-bottom: 18px;
+    }
+
+    .page-title {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #ffe4e6, #f9a8d4, #fecaca);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.03em;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-top: 5px;
+    }
+
+    .pill-row {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 4px 11px;
+      border: 1px solid rgba(252, 231, 243, 0.7);
+      background: rgba(24, 24, 27, 0.85);
+      color: #ffe4e6;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    @media (max-width: 1050px) {
+      .grid-two { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .card {
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at top left, rgba(251, 113, 133, 0.25), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(24, 10, 35, 0.9), transparent 60%),
+        rgba(17, 6, 26, 0.98);
+      border: 1px solid var(--border-soft);
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.95),
+        0 0 30px rgba(251, 113, 133, 0.55);
+      padding: 18px 20px 20px;
+    }
+
+    .card-muted {
+      border-color: rgba(148, 163, 184, 0.5);
+      background:
+        radial-gradient(circle at top left, rgba(148, 163, 184, 0.18), transparent 55%),
+        rgba(15, 23, 42, 0.96);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #ffe4e6;
+    }
+
+    .card-caption {
+      font-size: 12px;
+      color: rgba(254, 202, 232, 0.9);
+      margin-bottom: 10px;
+    }
+
+    .result-status {
+      font-size: 26px;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .result-status.benign {
+      color: var(--benign-soft);
+      text-shadow: 0 0 12px rgba(244, 114, 182, 0.8);
+    }
+
+    .result-status.malignant {
+      color: var(--malignant-dark);
+      text-shadow: 0 0 14px rgba(244, 63, 94, 0.95);
+    }
+
+    .prob-text {
+      margin-top: 2px;
+      font-size: 14px;
+      color: var(--accent-soft);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 3px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(252, 231, 243, 0.9);
+      color: #fdf2f8;
+      background: rgba(24, 24, 27, 0.9);
+    }
+
+    .status-pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #fbbf24;
+      box-shadow: 0 0 8px rgba(250, 204, 21, 0.95);
+    }
+
+    .status-pill.malignant {
+      background: rgba(159, 18, 57, 0.7);
+      border-color: rgba(248, 113, 133, 0.95);
+    }
+
+    .status-pill.malignant .status-pill-dot {
+      background: #fb7185;
+      box-shadow: 0 0 10px rgba(248, 113, 133, 1);
+    }
+
+    .status-pill.benign {
+      background: rgba(236, 72, 153, 0.35);
+      border-color: rgba(251, 207, 232, 0.95);
+    }
+
+    .status-pill.benign .status-pill-dot {
+      background: #f9a8d4;
+      box-shadow: 0 0 10px rgba(244, 114, 182, 1);
+    }
+
+    .pulse-wrapper {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #ffe4e6;
+    }
+
+    .pulse-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #fecdd3 0, #f472b6 60%, #7f1d1d 100%);
+      box-shadow: 0 0 16px rgba(248, 113, 133, 0.95);
+      animation: pulse 1.3s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      50% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.8; }
+    }
+
+    .confidence-bar {
+      margin-top: 12px;
+    }
+
+    .conf-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: rgba(254, 242, 242, 0.95);
+      margin-bottom: 4px;
+    }
+
+    .conf-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #22c55e, #facc15, #fb923c, #ef4444);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .conf-thumb {
+      position: absolute;
+      top: -2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: #f9fafb;
+      border: 2px solid #111827;
+      box-shadow: 0 0 10px rgba(249, 250, 251, 0.95);
+      transform: translateX(-50%);
+      transition: left 0.3s ease;
+    }
+
+    .table-wrapper {
+      margin-top: 10px;
+      max-height: 260px;
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.96);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: rgba(15, 23, 42, 0.98);
+      text-align: left;
+      font-weight: 600;
+      color: #e5e7eb;
+      z-index: 1;
+    }
+
+    tr:nth-child(even) td {
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+
+    .status-chip.normal {
+      background: rgba(22, 163, 74, 0.22);
+      color: #bbf7d0;
+    }
+
+    .status-chip.high {
+      background: rgba(185, 28, 28, 0.35);
+      color: #fee2e2;
+    }
+
+    .status-chip.low {
+      background: rgba(30, 64, 175, 0.32);
+      color: #bfdbfe;
+    }
+
+    .chart-container {
+      margin-top: 6px;
+      padding: 6px 4px 4px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      height: 260px;
+    }
+
+    .list {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #e5e7eb;
+    }
+
+    .list li {
+      margin-bottom: 4px;
+    }
+
+    .download-card {
+      margin-top: 20px;
+      border-radius: 18px;
+      padding: 14px 16px 16px;
+      background: linear-gradient(90deg, rgba(251, 207, 232, 0.2), rgba(190, 24, 93, 0.9));
+      border: 1px solid rgba(251, 113, 133, 0.8);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.95);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .download-btn {
+      padding: 9px 20px;
+      border-radius: 999px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #f9fafb;
+      background: linear-gradient(90deg, #16a34a, #22c55e);
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.9),
+        0 0 18px rgba(74, 222, 128, 0.95);
+    }
+
+    .download-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .disclaimer {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #fee2e2;
+      opacity: 0.85;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="navbar">
+    <div class="nav-left" onclick="location.href='dashboard.html'">
+      <div class="nav-logo">🎗️</div>
+      <div class="nav-title">Hybrid AI Diagnostics System</div>
+    </div>
+  </div>
+
+  <canvas id="snowCanvas"></canvas>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sb-group">
+        <div class="sb-link" onclick="location.href='heart.html'">
+          <span class="icon-box">❤️</span>
+          <span class="sb-text">Heart Disease</span>
+        </div>
+        <div class="sb-link" onclick="location.href='diabetes.html'">
+          <span class="icon-box">💉</span>
+          <span class="sb-text">Diabetes</span>
+        </div>
+        <div class="sb-link active" onclick="location.href='breast.html'">
+          <span class="icon-box">🎗️</span>
+          <span class="sb-text">Breast Cancer</span>
+        </div>
+        <div class="sb-link" onclick="location.href='brain.html'">
+          <span class="icon-box">🧠</span>
+          <span class="sb-text">Brain Tumor</span>
+        </div>
+      </div>
+
+      <div class="sb-bottom">
+        <div class="sb-link" onclick="location.href='history.html'">
+          <span class="icon-box">📜</span>
+          <span class="sb-text">History</span>
+        </div>
+        <div class="sb-link" onclick="logout()">
+          <span class="icon-box">🚪</span>
+          <span class="sb-text">Logout</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="page-header">
+        <div class="page-title">Breast Cancer Risk Prediction</div>
+        <div class="page-subtitle" id="subtitleText">
+          Loading latest prediction…
+        </div>
+        <div class="pill-row">
+          <span class="pill">Mode: XGBoost + Rule Engine + GPT-2 Advisory</span>
+          <span class="pill">Task: Benign vs Malignant breast lesion</span>
+        </div>
+      </header>
+
+      <div class="grid-two">
+        <!-- LEFT: main result & advisory -->
+        <section class="card">
+          <div class="card-title">Prediction Result</div>
+          <div class="card-caption">
+            Summary of the model output based on the tumor feature values you entered.
+          </div>
+
+          <div id="resultStatus" class="result-status">No result</div>
+          <div id="probText" class="prob-text"></div>
+
+          <div id="riskPill" class="status-pill">
+            <span class="status-pill-dot"></span>
+            <span id="statusLabel">STATUS: UNKNOWN</span>
+          </div>
+
+          <div class="pulse-wrapper">
+            <div class="pulse-dot"></div>
+            <span id="pulseText">Awaiting prediction data…</span>
+          </div>
+
+          <div class="confidence-bar">
+            <div class="conf-label-row">
+              <span>Model confidence</span>
+              <span id="confValue">-- %</span>
+            </div>
+            <div class="conf-track">
+              <div id="confThumb" class="conf-thumb" style="left: 0%;"></div>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <div class="card-title" style="font-size: 15px;">AI Advisory</div>
+            <p id="advisoryText" style="font-size: 13px; color:#e5e7eb; margin-top:4px;">
+              Run a prediction from the breast cancer input page to view tailored guidance.
+            </p>
+
+            <div style="margin-top: 10px;">
+              <strong style="font-size:13px;">Lifestyle & follow-up suggestions:</strong>
+              <ul id="lifestyleList" class="list" style="margin-top: 4px;"></ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT: chart + table -->
+        <section class="card card-muted">
+          <div class="card-title">Key Feature Comparison</div>
+          <div class="card-caption">
+            Compares your feature values with typical reference ranges to highlight potential abnormalities.
+          </div>
+
+          <div class="chart-container">
+            <canvas id="factorChart"></canvas>
+          </div>
+
+          <div class="table-wrapper" style="margin-top:10px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Your Value</th>
+                  <th>Normal Range</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="factorTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Bottom: outlook + download -->
+      <section class="card" style="margin-top: 18px;">
+        <div class="card-title" id="outlookTitle">
+          Outlook summary
+        </div>
+        <div class="card-caption" id="outlookText">
+          Interpretation of your risk and general next-step suggestions.
+        </div>
+        <ul id="outlookList" class="list"></ul>
+
+        <div class="download-card" style="margin-top:16px;">
+          <div>
+            <div style="font-weight:600; margin-bottom:3px;">Download detailed PDF report</div>
+            <div style="font-size:12px; color:#fdf2f8;">
+              Includes your inputs, feature comparison table, and AI advisory in a printable format.
+            </div>
+          </div>
+          <button id="downloadBtn" class="download-btn" disabled>
+            ⬇ Download PDF Report
+          </button>
+        </div>
+
+        <div class="disclaimer">
+          Disclaimer: This system provides AI-generated risk estimates and suggestions.
+          It is not a confirmed diagnosis or a substitute for consultation with a certified
+          doctor or oncologist. Always follow advice from your healthcare provider.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const BACKEND = "http://127.0.0.1:8000";
+  
+    // ========= AUTH CHECK =========
+    async function checkAuth() {
+  const token = localStorage.getItem("token");
+  if (!token) return (window.location.href = "login.html");
+
+  try {
+    const r = await fetch(BACKEND + "/auth/me", {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: "Bearer " + token
+      }
+    });
+
+    if (!r.ok) {
+      console.warn("Auth failed:", await r.text());
+      localStorage.removeItem("token");
+      return (window.location.href = "login.html");
+    }
+  } catch (e) {
+    console.error("Auth error:", e);
+    localStorage.removeItem("token");
+    window.location.href = "login.html";
+  }
+}
+
+window.addEventListener("load", checkAuth);
+
+  
+    function logout() {
+      localStorage.removeItem("token");
+      location.href = "login.html";
+    }
+  
+    // ========= SNOW BACKGROUND =========
+    const snowCanvas = document.getElementById("snowCanvas");
+    const sctx = snowCanvas.getContext("2d");
+  
+    function resizeSnow() {
+      snowCanvas.width = window.innerWidth;
+      snowCanvas.height = window.innerHeight;
+    }
+    resizeSnow();
+    window.addEventListener("resize", resizeSnow);
+  
+    const flakes = [];
+    for (let i = 0; i < 160; i++) {
+      flakes.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        r: Math.random() * 2 + 1,
+        v: Math.random() * 0.7 + 0.3,
+      });
+    }
+  
+    (function drawSnow() {
+      sctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+      sctx.fillStyle = "rgba(255,255,255,0.9)";
+      for (const f of flakes) {
+        sctx.beginPath();
+        sctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        sctx.fill();
+        f.y += f.v;
+        if (f.y > window.innerHeight) {
+          f.y = -10;
+          f.x = Math.random() * window.innerWidth;
+        }
+      }
+      requestAnimationFrame(drawSnow);
+    })();
+  
+    // ========= LOAD RESULT FROM LOCALSTORAGE =========
+    const raw = localStorage.getItem("breastResult");
+    let result = null;
+  
+    const subtitleText = document.getElementById("subtitleText");
+    const resultStatusEl = document.getElementById("resultStatus");
+    const probTextEl = document.getElementById("probText");
+    const riskPillEl = document.getElementById("riskPill");
+    const statusLabelEl = document.getElementById("statusLabel");
+    const pulseTextEl = document.getElementById("pulseText");
+    const confValueEl = document.getElementById("confValue");
+    const confThumbEl = document.getElementById("confThumb");
+    const advisoryTextEl = document.getElementById("advisoryText");
+    const lifestyleListEl = document.getElementById("lifestyleList");
+    const factorTableBody = document.getElementById("factorTableBody");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const outlookTitle = document.getElementById("outlookTitle");
+    const outlookText = document.getElementById("outlookText");
+    const outlookList = document.getElementById("outlookList");
+  
+    let chartInstance = null;
+  
+    function confidenceBucket(prob) {
+      const pct = prob * 100;
+      if (pct >= 90) return { label: "Very High", band: "Very certain outcome" };
+      if (pct >= 75) return { label: "High", band: "Model is confident" };
+      if (pct >= 55) return { label: "Medium", band: "Moderate certainty" };
+      return { label: "Low", band: "Use with caution" };
+    }
+  
+    function buildChart(comparisons) {
+      const ctx = document.getElementById("factorChart").getContext("2d");
+      const labels = [];
+      const userValues = [];
+      const normalMax = [];
+  
+      comparisons.forEach(c => {
+        labels.push(c.feature);
+        userValues.push(Number(c.user_value ?? 0));
+        normalMax.push(
+          c.normal_max !== undefined && c.normal_max !== null
+            ? Number(c.normal_max)
+            : Number(c.user_value ?? 0)
+        );
+      });
+  
+      if (chartInstance) chartInstance.destroy();
+  
+      chartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Upper normal bound",
+              data: normalMax,
+              borderWidth: 0,
+              backgroundColor: "#f9a8d4",
+            },
+            {
+              label: "Your value",
+              data: userValues,
+              borderWidth: 0,
+              backgroundColor: "#fb7185",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              ticks: { color: "#e5e7eb", font: { size: 11 } },
+              grid: { color: "rgba(148,163,184,0.25)" },
+            },
+            y: {
+              ticks: { color: "#e5e7eb", font: { size: 11 } },
+              grid: { color: "rgba(55,65,81,0.6)" },
+            },
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: "#e5e7eb",
+                font: { size: 11 },
+              },
+            },
+            tooltip: {
+              callbacks: {
+                label(ctx) {
+                  return `${ctx.dataset.label}: ${ctx.parsed.x ?? ctx.parsed.y}`;
+                },
+              },
+            },
+          },
+          indexAxis: "y",
+        },
+      });
+    }
+  
+    function renderTable(comparisons) {
+      factorTableBody.innerHTML = "";
+      comparisons.forEach(c => {
+        const tr = document.createElement("tr");
+  
+        const tdFeature = document.createElement("td");
+        tdFeature.textContent = c.feature;
+  
+        const tdUser = document.createElement("td");
+        tdUser.textContent = c.user_value;
+  
+        const tdRange = document.createElement("td");
+        const hasRange = c.normal_min !== undefined && c.normal_max !== undefined;
+        tdRange.textContent = hasRange ? `${c.normal_min} – ${c.normal_max}` : "—";
+  
+        const tdStatus = document.createElement("td");
+        const span = document.createElement("span");
+        const status = (c.status || "").toLowerCase();
+        span.classList.add("status-chip");
+        if (status.includes("high")) span.classList.add("high");
+        else if (status.includes("low")) span.classList.add("low");
+        else span.classList.add("normal");
+        span.textContent = c.status || "Normal";
+        tdStatus.appendChild(span);
+  
+        tr.appendChild(tdFeature);
+        tr.appendChild(tdUser);
+        tr.appendChild(tdRange);
+        tr.appendChild(tdStatus);
+  
+        factorTableBody.appendChild(tr);
+      });
+    }
+  
+    function renderResult() {
+      if (!raw) {
+        resultStatusEl.textContent = "No prediction available";
+        subtitleText.textContent =
+          "No stored breast cancer prediction found. Please run a new prediction.";
+        pulseTextEl.textContent =
+          "Go back to the breast input page and run a prediction.";
+        return;
+      }
+  
+      result = JSON.parse(raw);
+  
+      const label = result.label || "Unknown";
+      const prob = Number(result.probability || 0);
+      const pct = (prob * 100).toFixed(1);
+      const comparisons = Array.isArray(result.comparisons)
+        ? result.comparisons
+        : [];
+  
+      subtitleText.textContent =
+        "Model output combined with rule-based advisory and GPT-2 refinement for this tumor profile.";
+  
+      const isMalignant = label.toLowerCase().includes("malignant");
+  
+      resultStatusEl.textContent = label;
+      resultStatusEl.classList.toggle("malignant", isMalignant);
+      resultStatusEl.classList.toggle("benign", !isMalignant);
+  
+      probTextEl.textContent = `${pct}% estimated probability of this outcome.`;
+  
+      statusLabelEl.textContent = isMalignant
+        ? "STATUS: HIGH RISK (MALIGNANT PATTERN)"
+        : "STATUS: LOW RISK (LIKELY BENIGN)";
+  
+      riskPillEl.classList.toggle("malignant", isMalignant);
+      riskPillEl.classList.toggle("benign", !isMalignant);
+  
+      pulseTextEl.textContent = isMalignant
+        ? "Pattern is concerning for malignancy — prioritize a consultation with a breast specialist."
+        : "Result suggests a benign pattern — continue regular screening as advised by your doctor.";
+  
+      confValueEl.textContent = `${pct}%`;
+      confThumbEl.style.left = `${Math.min(100, Math.max(0, prob * 100))}%`;
+  
+      advisoryTextEl.textContent =
+        result.suggestion_text ||
+        result.rule_base ||
+        "No detailed advisory available from the model.";
+  
+      lifestyleListEl.innerHTML = "";
+      if (
+        Array.isArray(result.lifestyle_recommendations) &&
+        result.lifestyle_recommendations.length
+      ) {
+        result.lifestyle_recommendations.forEach(item => {
+          const li = document.createElement("li");
+          li.textContent = item;
+          lifestyleListEl.appendChild(li);
+        });
+      } else {
+        const li = document.createElement("li");
+        li.textContent =
+          "Follow age-appropriate screening, report any new breast changes promptly, and discuss personal risk factors with your clinician.";
+        lifestyleListEl.appendChild(li);
+      }
+  
+      outlookTitle.textContent = isMalignant
+        ? "Cautious Outlook: Features suggest malignant risk"
+        : "Reassuring Outlook: Features suggest a benign pattern";
+  
+      outlookText.textContent = isMalignant
+        ? "Your feature pattern is more consistent with a malignant lesion. The following steps are commonly recommended:"
+        : "Your feature pattern is more consistent with a benign lesion. Even so, ongoing observation and screening are important:";
+  
+      outlookList.innerHTML = "";
+      const points = isMalignant
+        ? [
+            "Arrange an urgent consultation with a breast surgeon or oncologist.",
+            "Discuss further investigations such as diagnostic mammogram, ultrasound, or MRI, and biopsy if recommended.",
+            "Gather all prior reports and imaging to share with your doctor.",
+            "Seek emotional and social support from family, friends, or support groups during evaluation.",
+          ]
+        : [
+            "Follow your doctor's recommendation for follow-up imaging or routine screening.",
+            "Be aware of normal breast appearance and report new lumps, skin dimpling, or nipple changes.",
+            "Maintain a healthy lifestyle: balanced diet, regular physical activity, weight management.",
+            "Discuss personal and family history of breast/ovarian cancer with your clinician to individualize your screening plan.",
+          ];
+  
+      points.forEach(t => {
+        const li = document.createElement("li");
+        li.textContent = t;
+        outlookList.appendChild(li);
+      });
+  
+      if (comparisons.length) {
+        renderTable(comparisons);
+  
+        const abnormalForChart = comparisons.filter(c => {
+          const s = (c.status || "").toLowerCase();
+          return s === "high" || s === "low";
+        });
+  
+        if (abnormalForChart.length) {
+          buildChart(abnormalForChart);
+        } else {
+          const ctx = document
+            .getElementById("factorChart")
+            .getContext("2d");
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        }
+      }
+  
+      if (result.report_url) {
+        downloadBtn.disabled = false;
+        downloadBtn.onclick = () => {
+          window.open(BACKEND + result.report_url, "_blank");
+        };
+      } else {
+        downloadBtn.disabled = true;
+      }
+    }
+  
+    renderResult();
+  </script>
+</body>
+</html>

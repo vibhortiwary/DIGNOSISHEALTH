@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Hybrid AI Diagnostics — Dashboard V4</title>
+
+  <!-- Chart.js for mini module distribution chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --nav-bg: rgba(6, 11, 25, 0.96);
+      --sidebar-bg: rgba(10, 15, 35, 0.92);
+      --glass: rgba(255, 255, 255, 0.04);
+      --glass-strong: rgba(255, 255, 255, 0.10);
+      --border-soft: rgba(148, 163, 184, 0.5);
+      --border-strong: rgba(129, 140, 248, 0.85);
+
+      --heart: #fb7185;
+      --diabetes: #facc15;
+      --breast: #fb923c;
+      --brain: #a855f7;
+
+      --text-main: #e5eeff;
+      --text-soft: #9ca9ff;
+      --good: #4ade80;
+      --bad: #f97373;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      background:
+        radial-gradient(circle at top, #273469 0, #141b34 55%, #050716 100%);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* Snow BG */
+    #snowCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      filter: blur(1px);
+      pointer-events: none;
+    }
+
+    /* Navbar */
+    .navbar {
+      width: 100%;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 22px;
+      background: var(--nav-bg);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      box-shadow:
+        0 14px 40px rgba(0,0,0,0.9),
+        0 0 32px rgba(129, 140, 248, 0.35);
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .nav-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      object-fit: cover;
+      box-shadow: 0 0 18px rgba(129, 140, 248, 0.85);
+    }
+
+    .nav-title {
+      font-size: 19px;
+      font-weight: 600;
+      color: #e5edff;
+      letter-spacing: 0.03em;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .secure-pill {
+      padding: 5px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(52, 211, 153, 0.7);
+      background: rgba(6, 95, 70, 0.3);
+      color: #bbf7d0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+
+    .user-pill {
+      padding: 6px 11px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(129, 140, 248, 0.7);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+    }
+
+    .user-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #bfdbfe 0, #6366f1 45%, #020024 100%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+    }
+
+    /* Layout */
+    .layout {
+      display: flex;
+      height: calc(100vh - 64px);
+      margin-top: 64px;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 78px;
+      height: 100%;
+      background: var(--sidebar-bg);
+      border-right: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 18px 10px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-y: auto;
+      overflow-x: hidden;
+      transition: width 0.25s ease;
+      box-shadow: inset -4px 0 18px rgba(0,0,0,0.55);
+    }
+
+    .sidebar:hover { width: 230px; }
+
+    .sidebar::-webkit-scrollbar {
+      width: 6px;
+    }
+    .sidebar::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.18);
+      border-radius: 999px;
+    }
+
+    .sb-group,
+    .sb-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sb-link {
+      padding: 11px 13px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      color: #e5e7eb;
+      transition: 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .sb-link:hover {
+      transform: translateX(4px);
+      background: radial-gradient(circle at top left, rgba(129, 140, 248, 0.3), rgba(15, 23, 42, 1));
+      border-color: rgba(129, 140, 248, 0.9);
+      box-shadow: 0 0 16px rgba(129, 140, 248, 0.7);
+    }
+
+    .sb-link.active {
+      border-color: #818cf8;
+      box-shadow: 0 0 18px rgba(129, 140, 248, 0.95);
+      background: radial-gradient(circle at top left, rgba(129, 140, 248, 0.45), rgba(15, 23, 42, 0.98));
+    }
+
+    .sidebar:not(:hover) .sb-text {
+      opacity: 0;
+      width: 0;
+      overflow: hidden;
+    }
+
+    /* Main */
+    .main {
+      flex: 1;
+      padding: 22px 26px 24px;
+      overflow-y: auto;
+    }
+
+    /* Greeting */
+    .greeting-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .greet-main {
+      font-size: 26px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #dbeafe, #a5b4fc, #f9a8d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .greet-sub {
+      font-size: 13px;
+      color: var(--text-soft);
+      max-width: 640px;
+      margin-top: 4px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 9px;
+    }
+
+    .badge {
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(191, 219, 254, 0.6);
+      background: rgba(15, 23, 42, 0.92);
+      color: #e0f2fe;
+    }
+
+    .right-mini {
+      text-align: right;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .dot-good {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--good);
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.95);
+      margin-right: 4px;
+    }
+
+    .time-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      background: rgba(15, 23, 42, 0.95);
+      margin-top: 6px;
+    }
+
+    /* Top stats row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .stats-row { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .stat-card {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: var(--glass);
+      border: 1px solid var(--border-soft);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      inset: -50%;
+      background: radial-gradient(circle at top left, rgba(129,140,248,0.15), transparent 60%);
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-soft);
+      margin-bottom: 2px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
+    }
+
+    .stat-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-top: 4px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Modules row */
+    .modules-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    @media (max-width: 1150px) {
+      .modules-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      .modules-row { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .module-card {
+      padding: 16px 16px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--border-soft);
+      background:
+        radial-gradient(circle at top left, rgba(148, 163, 184, 0.22), rgba(15, 23, 42, 0.96));
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .module-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+
+    .module-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .module-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 18px rgba(255, 255, 255, 0.35);
+    }
+
+    .module-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .module-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .module-meta {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .badge-mini-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .badge-mini {
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+    }
+
+    .module-start-btn {
+      align-self: flex-end;
+      margin-top: 9px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: white;
+      background: linear-gradient(90deg, #6366f1, #22d3ee);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.9);
+    }
+
+    /* Bottom grid */
+    .bottom-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.1fr);
+      gap: 18px;
+      margin-top: 8px;
+    }
+
+    @media (max-width: 1000px) {
+      .bottom-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .panel {
+      padding: 14px 16px 16px;
+      border-radius: 18px;
+      background: var(--glass);
+      border: 1px solid var(--border-soft);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .panel-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .link-chip {
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.95);
+      font-size: 11px;
+      color: #c7d2fe;
+      cursor: pointer;
+    }
+
+    /* History table */
+    .table-wrapper {
+      margin-top: 6px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.98);
+      max-height: 260px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 7px 9px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+    }
+
+    th {
+      background: rgba(15, 23, 42, 0.98);
+      text-align: left;
+      font-weight: 600;
+      color: #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tr:nth-child(even) td {
+      background: rgba(15, 23, 42, 0.93);
+    }
+
+    .chip-disease {
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .chip-heart { background: rgba(248, 113, 113, 0.25); color: #fecaca; }
+    .chip-diabetes { background: rgba(250, 204, 21, 0.25); color: #fef3c7; }
+    .chip-breast { background: rgba(251, 146, 60, 0.25); color: #ffedd5; }
+    .chip-brain { background: rgba(168, 85, 247, 0.25); color: #ede9fe; }
+
+    .tag-outcome {
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+
+    .tag-high { background: rgba(248, 113, 113, 0.22); color: #fecaca; }
+    .tag-low { background: rgba(22, 163, 74, 0.22); color: #bbf7d0; }
+
+    .h-del-btn {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: none;
+      font-size: 11px;
+      cursor: pointer;
+      background: rgba(239, 68, 68, 0.18);
+      color: #fecaca;
+    }
+
+    /* Status panel */
+    .status-list {
+      margin-top: 8px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 8px;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.55);
+    }
+
+    .status-name {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .status-label { font-size: 12px; }
+    .status-desc { font-size: 11px; color: var(--text-soft); }
+
+    .status-pill-online {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: rgba(22, 163, 74, 0.22);
+      color: #bbf7d0;
+    }
+
+    .status-pill-warn {
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: rgba(250, 204, 21, 0.22);
+      color: #fef3c7;
+    }
+
+    .chart-wrap {
+      margin-top: 10px;
+      padding: 8px 6px 6px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      height: 150px;
+    }
+
+    .tip-text {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<div class="navbar">
+  <div class="nav-left" onclick="location.href='dashboard.html'">
+    <!-- Your logo path: frontend/assets/logo.png (relative: assets/logo.png) -->
+    <img src="assets/logo.png" class="nav-logo" alt="logo" />
+    <div class="nav-title">Hybrid AI Diagnostics System</div>
+  </div>
+  <div class="nav-right">
+    <div class="secure-pill">
+      🔒 Secure
+      <span style="opacity:.7;">· Localhost</span>
+    </div>
+    <div class="user-pill">
+      <div class="user-avatar" id="userAvatar">U</div>
+      <span id="userNameTop">User</span>
+    </div>
+  </div>
+</div>
+
+<!-- Snow BG -->
+<canvas id="snowCanvas"></canvas>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-group">
+      <div class="sb-link" onclick="location.href='heart.html'">❤️ <span class="sb-text">Heart Disease</span></div>
+      <div class="sb-link" onclick="location.href='diabetes.html'">🩸 <span class="sb-text">Diabetes</span></div>
+      <div class="sb-link" onclick="location.href='breast.html'">🎀 <span class="sb-text">Breast Cancer</span></div>
+      <div class="sb-link" onclick="location.href='brain.html'">🧠 <span class="sb-text">Brain Tumor</span></div>
+    </div>
+    <div class="sb-bottom">
+      <div class="sb-link" onclick="location.href='history.html'">📜 <span class="sb-text">Full History</span></div>
+      <div class="sb-link" onclick="logout()">🚪 <span class="sb-text">Logout</span></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <!-- Greeting -->
+    <section class="greeting-row">
+      <div>
+        <div class="greet-main" id="greetTitle">
+          Good evening, <span id="greetName">User</span> 👋
+        </div>
+        <p class="greet-sub">
+          Run hybrid AI predictions for heart disease, diabetes, breast cancer and brain tumors
+          with explainable insights, Grad-CAM overlays, and downloadable PDF reports.
+        </p>
+        <div class="badge-row">
+          <span class="badge">CNN + XGBoost ensemble</span>
+          <span class="badge">Grad-CAM visualization</span>
+          <span class="badge">Explainable risk scores</span>
+          <span class="badge">PDF report export</span>
+        </div>
+      </div>
+      <div class="right-mini">
+        <div>All diagnostic services</div>
+        <div><span class="dot-good"></span>Healthy</div>
+        <div class="time-pill">
+          ⏱ Local time:
+          <span id="localClock">--:--</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Top stats -->
+    <section class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total predictions</div>
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-sub">
+          Today: <span id="statToday">0</span> · Last 7 days: <span id="stat7d">0</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Most used module</div>
+        <div class="stat-value" id="statMostModule">—</div>
+        <div class="stat-sub">
+          Last used: <span id="statLastModule">—</span>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Average model confidence</div>
+        <div class="stat-value" id="statAvgConf">—</div>
+        <div class="stat-sub">
+          Calculated across your stored predictions (higher is better).
+        </div>
+      </div>
+    </section>
+
+    <!-- Modules row -->
+    <section class="modules-row">
+      <!-- Heart -->
+      <article class="module-card">
+        <div class="module-header">
+          <div class="module-left">
+            <div class="module-icon" style="background: radial-gradient(circle at 30% 30%, #fecaca 0, var(--heart) 60%, #1f2937 100%);">
+              ❤️
+            </div>
+            <div>
+              <div class="module-title">Heart Disease</div>
+              <div class="module-sub">Tabular ML · Risk scoring</div>
+            </div>
+          </div>
+        </div>
+        <p class="module-meta">
+          Analyze cardiovascular metrics and estimate disease risk with explainable feature contributions.
+        </p>
+        <div class="badge-mini-row">
+          <span class="badge-mini">Logistic + XGBoost</span>
+          <span class="badge-mini">Rule engine</span>
+          <span class="badge-mini">Latency: &lt; 1s</span>
+        </div>
+        <button class="module-start-btn" onclick="location.href='heart.html'">Start</button>
+      </article>
+
+      <!-- Diabetes -->
+      <article class="module-card">
+        <div class="module-header">
+          <div class="module-left">
+            <div class="module-icon" style="background: radial-gradient(circle at 30% 30%, #fef9c3 0, var(--diabetes) 60%, #1f2937 100%);">
+              🩸
+            </div>
+            <div>
+              <div class="module-title">Diabetes</div>
+              <div class="module-sub">Normal / Prediabetes / Diabetes</div>
+            </div>
+          </div>
+        </div>
+        <p class="module-meta">
+          Use glucose, BMI and other indicators to classify diabetes risk and receive lifestyle guidance.
+        </p>
+        <div class="badge-mini-row">
+          <span class="badge-mini">Hybrid ML + rules</span>
+          <span class="badge-mini">Lifestyle coaching</span>
+          <span class="badge-mini">Latency: &lt; 1s</span>
+        </div>
+        <button class="module-start-btn" onclick="location.href='diabetes.html'">Start</button>
+      </article>
+
+      <!-- Breast -->
+      <article class="module-card">
+        <div class="module-header">
+          <div class="module-left">
+            <div class="module-icon" style="background: radial-gradient(circle at 30% 30%, #fed7e2 0, var(--breast) 60%, #1f2937 100%);">
+              🎀
+            </div>
+            <div>
+              <div class="module-title">Breast Cancer</div>
+              <div class="module-sub">Benign vs Malignant</div>
+            </div>
+          </div>
+        </div>
+        <p class="module-meta">
+          Predict malignancy from tumor features with feature comparison tables and PDF reports.
+        </p>
+        <div class="badge-mini-row">
+          <span class="badge-mini">XGBoost classifier</span>
+          <span class="badge-mini">Explainable inputs</span>
+          <span class="badge-mini">Latency: &lt; 1s</span>
+        </div>
+        <button class="module-start-btn" onclick="location.href='breast.html'">Start</button>
+      </article>
+
+      <!-- Brain -->
+      <article class="module-card">
+        <div class="module-header">
+          <div class="module-left">
+            <div class="module-icon" style="background: radial-gradient(circle at 30% 30%, #ddd6fe 0, var(--brain) 60%, #0f172a 100%);">
+              🧠
+            </div>
+            <div>
+              <div class="module-title">Brain Tumor</div>
+              <div class="module-sub">MRI · Tumor vs No Tumor</div>
+            </div>
+          </div>
+        </div>
+        <p class="module-meta">
+          Upload MRI scans, view CNN predictions, and inspect Grad-CAM heatmaps for suspicious regions.
+        </p>
+        <div class="badge-mini-row">
+          <span class="badge-mini">MobileNetV3 CNN</span>
+          <span class="badge-mini">Grad-CAM overlays</span>
+          <span class="badge-mini">Latency: 1–3s</span>
+        </div>
+        <button class="module-start-btn" onclick="location.href='brain.html'">Start</button>
+      </article>
+    </section>
+
+    <!-- Bottom panels -->
+    <section class="bottom-grid">
+      <!-- Recent history -->
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Recent predictions</div>
+            <div class="panel-sub">Latest runs from all modules.</div>
+          </div>
+          <button class="link-chip" onclick="location.href='history.html'">
+            View full history →
+          </button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th>Prediction</th>
+                <th>Confidence</th>
+                <th>Time</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="historyBody">
+              <tr>
+                <td colspan="5" style="text-align:center; padding:10px; font-size:12px; color:#cbd5f5;">
+                  Loading history…
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Status + chart -->
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Model status & quick tips</div>
+            <div class="panel-sub">Local service health overview.</div>
+          </div>
+        </div>
+
+        <div class="status-list">
+          <div class="status-item">
+            <div class="status-name">
+              <span class="status-label">Tabular models (Heart / Diabetes / Breast)</span>
+              <span class="status-desc">CPU optimized · typical latency &lt; 1 second</span>
+            </div>
+            <span class="status-pill-online">Online</span>
+          </div>
+          <div class="status-item">
+            <div class="status-name">
+              <span class="status-label">Brain MRI CNN</span>
+              <span class="status-desc">Grad-CAM enabled · image preprocessing active</span>
+            </div>
+            <span class="status-pill-online">Online</span>
+          </div>
+          <div class="status-item">
+            <div class="status-name">
+              <span class="status-label">PDF report generator</span>
+              <span class="status-desc">Runs on demand and logs to history</span>
+            </div>
+            <span class="status-pill-warn">On demand</span>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="moduleChart"></canvas>
+        </div>
+
+        <p class="tip-text">
+          Tip: For documentable results, always download the PDF after each prediction. For MRI scans,
+          prefer high-contrast slices with minimal noise to get clearer Grad-CAM overlays.
+        </p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const BACKEND = "http://127.0.0.1:8000";
+
+  /* ========== Auth + user (USERNAME FIXED) ========== */
+  async function checkAuth() {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      location.href = "login.html";
+      return;
+    }
+    try {
+      const res = await fetch(BACKEND + "/auth/me", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      if (!res.ok) {
+        localStorage.removeItem("token");
+        location.href = "login.html";
+        return;
+      }
+
+      // EXPECTED RESPONSE (Option A):
+      // { "id": 1, "username": "Vibhor", "email": "vibhor@gmail.com" }
+      const user = await res.json();
+
+      const username = user.username && user.username.trim()
+        ? user.username.trim()
+        : (user.email || "User");
+
+      document.getElementById("userNameTop").textContent = username;
+      document.getElementById("greetName").textContent = username.split(" ")[0];
+
+      const avatar = document.getElementById("userAvatar");
+      avatar.textContent = username[0]?.toUpperCase() || "U";
+    } catch (e) {
+      console.error("Auth error:", e);
+      localStorage.removeItem("token");
+      location.href = "login.html";
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem("token");
+    location.href = "login.html";
+  }
+
+  /* ========== Snow background ========== */
+  const snowCanvas = document.getElementById("snowCanvas");
+  const sctx = snowCanvas.getContext("2d");
+
+  function resizeSnow() {
+    snowCanvas.width = window.innerWidth;
+    snowCanvas.height = window.innerHeight;
+  }
+  resizeSnow();
+  window.addEventListener("resize", resizeSnow);
+
+  const flakes = [];
+  for (let i = 0; i < 160; i++) {
+    flakes.push({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      r: Math.random() * 2 + 1,
+      v: Math.random() * 0.7 + 0.3,
+    });
+  }
+
+  (function drawSnow() {
+    sctx.clearRect(0, 0, snowCanvas.width, snowCanvas.height);
+    sctx.fillStyle = "rgba(255,255,255,0.9)";
+    for (const f of flakes) {
+      sctx.beginPath();
+      sctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+      sctx.fill();
+      f.y += f.v;
+      if (f.y > snowCanvas.height) {
+        f.y = -10;
+        f.x = Math.random() * snowCanvas.width;
+      }
+    }
+    requestAnimationFrame(drawSnow);
+  })();
+
+  /* ========== Greeting clock ========== */
+  function updateClockAndGreeting() {
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes().toString().padStart(2, "0");
+    const clock = `${h.toString().padStart(2, "0")}:${m}`;
+    document.getElementById("localClock").textContent = clock;
+
+    let label = "Good evening";
+    if (h >= 5 && h < 12) label = "Good morning";
+    else if (h >= 12 && h < 17) label = "Good afternoon";
+
+    const gt = document.getElementById("greetTitle");
+    // Change only the text node before the span
+    const span = document.getElementById("greetName");
+    gt.innerHTML = `${label}, <span id="greetName">${span.textContent}</span> 👋`;
+  }
+  updateClockAndGreeting();
+  setInterval(updateClockAndGreeting, 60 * 1000);
+
+  /* ========== History + stats (AVG CONFIDENCE FIXED) ========== */
+  let moduleChartInstance = null;
+
+  function diseaseToChipClass(disease) {
+    const d = (disease || "").toLowerCase();
+    if (d.includes("heart")) return "chip-heart";
+    if (d.includes("diab")) return "chip-diabetes";
+    if (d.includes("breast")) return "chip-breast";
+    if (d.includes("brain")) return "chip-brain";
+    return "chip-heart";
+  }
+
+  function formatTime(iso) {
+    if (!iso) return "--";
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "--";
+    return (
+      d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) +
+      " · " +
+      d.toLocaleDateString()
+    );
+  }
+
+  async function loadHistoryAndStats() {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    try {
+      const res = await fetch(BACKEND + "/history/list", {
+        headers: { Authorization: "Bearer " + token },
+      });
+      if (!res.ok) throw new Error("History fetch failed");
+
+      const history = await res.json();
+      const body = document.getElementById("historyBody");
+      body.innerHTML = "";
+
+      if (!Array.isArray(history) || !history.length) {
+        body.innerHTML =
+          `<tr><td colspan="5" style="text-align:center; padding:10px; font-size:12px; color:#cbd5f5;">
+             No predictions yet. Run any module to see history here.
+           </td></tr>`;
+      } else {
+        history.slice(0, 12).forEach((item) => {
+          const tr = document.createElement("tr");
+
+          // Module
+          const diseaseTd = document.createElement("td");
+          diseaseTd.innerHTML =
+            `<span class="chip-disease ${diseaseToChipClass(item.disease)}">
+               ${item.disease}
+             </span>`;
+
+          // Prediction
+          const predTd = document.createElement("td");
+          const label = item.prediction || "—";
+          let tagClass = "";
+          const lower = (label + "").toLowerCase();
+          if (lower.includes("high") || lower.includes("tumor") || lower.includes("malignant")) {
+            tagClass = "tag-high";
+          } else if (
+            lower.includes("low") ||
+            lower.includes("benign") ||
+            lower.includes("no tumor") ||
+            lower.includes("normal")
+          ) {
+            tagClass = "tag-low";
+          }
+
+          predTd.innerHTML = tagClass
+            ? `<span class="tag-outcome ${tagClass}">${label}</span>`
+            : label;
+
+          // Confidence
+          const confTd = document.createElement("td");
+          const prob = typeof item.probability === "number"
+            ? item.probability
+            : parseFloat(item.probability);
+          confTd.textContent =
+            !isNaN(prob) ? (prob * 100).toFixed(1) + "%" : "—";
+
+          // Time
+          const timeTd = document.createElement("td");
+          timeTd.textContent = formatTime(item.created_at);
+
+          // Action (delete)
+          const actionTd = document.createElement("td");
+          const delBtn = document.createElement("button");
+          delBtn.textContent = "Delete";
+          delBtn.className = "h-del-btn";
+          delBtn.onclick = () => deleteHistoryItem(item.id);
+          actionTd.appendChild(delBtn);
+
+          tr.appendChild(diseaseTd);
+          tr.appendChild(predTd);
+          tr.appendChild(confTd);
+          tr.appendChild(timeTd);
+          tr.appendChild(actionTd);
+
+          body.appendChild(tr);
+        });
+      }
+
+      // ===== Stats calculation =====
+      const total = Array.isArray(history) ? history.length : 0;
+      document.getElementById("statTotal").textContent = total;
+
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      let countToday = 0;
+      let count7d = 0;
+      let sumProb = 0;
+      let probCount = 0;
+
+      const perModule = { heart: 0, diabetes: 0, breast: 0, brain: 0 };
+      let lastModule = "—";
+
+      history.forEach((item, idx) => {
+        const d = new Date(item.created_at || "");
+        if (!isNaN(d.getTime())) {
+          const isoDate = d.toISOString().slice(0, 10);
+          if (isoDate === todayStr) countToday++;
+
+          const diffMs = now - d;
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          if (diffDays <= 7) count7d++;
+        }
+
+        // Probability for average confidence
+        const p =
+          typeof item.probability === "number"
+            ? item.probability
+            : parseFloat(item.probability);
+
+        if (!isNaN(p)) {
+          sumProb += p;
+          probCount++;
+        }
+
+        const disease = (item.disease || "").toLowerCase();
+        if (disease.includes("heart")) perModule.heart++;
+        else if (disease.includes("diab")) perModule.diabetes++;
+        else if (disease.includes("breast")) perModule.breast++;
+        else if (disease.includes("brain")) perModule.brain++;
+
+        if (idx === 0) {
+          lastModule = item.disease || "—";
+        }
+      });
+
+      document.getElementById("statToday").textContent = countToday;
+      document.getElementById("stat7d").textContent = count7d;
+
+      // AVG CONFIDENCE FIX: use only valid numeric probabilities
+      const avgProb = probCount > 0 ? (sumProb / probCount) * 100 : null;
+      document.getElementById("statAvgConf").textContent =
+        avgProb != null ? avgProb.toFixed(1) + "%" : "—";
+
+      // Most used module
+      const entries = Object.entries(perModule);
+      entries.sort((a, b) => b[1] - a[1]);
+      const most = entries[0];
+      const labelMap = {
+        heart: "Heart Disease",
+        diabetes: "Diabetes",
+        breast: "Breast Cancer",
+        brain: "Brain Tumor",
+      };
+      document.getElementById("statMostModule").textContent =
+        most && most[1] > 0 ? labelMap[most[0]] : "—";
+      document.getElementById("statLastModule").textContent = lastModule;
+
+      // Small doughnut chart
+      const ctx = document.getElementById("moduleChart").getContext("2d");
+      const dataVals = [
+        perModule.heart,
+        perModule.diabetes,
+        perModule.breast,
+        perModule.brain,
+      ];
+
+      if (moduleChartInstance) moduleChartInstance.destroy();
+
+      moduleChartInstance = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: ["Heart", "Diabetes", "Breast", "Brain"],
+          datasets: [
+            {
+              data: dataVals,
+              backgroundColor: ["#fb7185", "#facc15", "#fb923c", "#a855f7"],
+              borderWidth: 0,
+            },
+          ],
+        },
+        options: {
+          plugins: {
+            legend: {
+              labels: {
+                color: "#e5e7eb",
+                font: { size: 10 },
+              },
+              position: "bottom",
+            },
+          },
+          cutout: "58%",
+        },
+      });
+    } catch (e) {
+      console.log("History / stats error:", e);
+      const body = document.getElementById("historyBody");
+      body.innerHTML =
+        `<tr><td colspan="5" style="text-align:center; padding:10px; font-size:12px; color:#fecaca;">
+           Failed to load history.
+         </td></tr>`;
+    }
+  }
+
+  async function deleteHistoryItem(id) {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    if (!confirm("Delete this record from history?")) return;
+
+    try {
+      await fetch(BACKEND + "/history/" + id, {
+        method: "DELETE",
+        headers: { Authorization: "Bearer " + token },
+      });
+      loadHistoryAndStats();
+    } catch (e) {
+      alert("Failed to delete record.");
+    }
+  }
+
+  /* Init */
+  checkAuth();
+  loadHistoryAndStats();
+</script>
+</body>
+</html>

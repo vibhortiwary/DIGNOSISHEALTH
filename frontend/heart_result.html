@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heart Prediction Result</title>
+
+  <!-- Chart.js for bar chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg-deep: #050208;
+      --bg-top: #190014;
+      --card-bg: rgba(12, 6, 18, 0.97);
+      --border-soft: rgba(254, 202, 202, 0.45);
+      --accent: #fb7185;
+      --accent-strong: #f31260;
+      --accent-soft: #fecaca;
+      --success: #22c55e;
+      --danger: #ef4444;
+      --text-main: #fef2f2;
+      --text-soft: #fecaca;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      background: radial-gradient(circle at top, #3b0219 0, #050208 55%, #000000 100%);
+      color: var(--text-main);
+      overflow-x: hidden;
+      overflow-y: auto;
+  
+    }
+
+    #snowCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      filter: blur(1px);
+    }
+
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 10px 26px;
+      background: linear-gradient(90deg, rgba(10, 5, 20, 0.96), rgba(40, 9, 31, 0.95));
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(248, 113, 113, 0.4);
+      z-index: 100;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8);
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .nav-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: radial-gradient(circle at 30% 30%, #ff8ba7 0, #be123c 45%, #020617 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      box-shadow: 0 0 18px rgba(248, 113, 113, 0.75);
+    }
+
+    .nav-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #fee2e2;
+    }
+
+    .layout {
+      display: flex;
+      height: 100vh;
+      margin-top: 64px;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* Sidebar aligned same as form page */
+    .sidebar {
+      width: 80px;
+      height: calc(100vh - 64px);
+      background: radial-gradient(circle at top, #1f0316 0, #02010a 55%);
+      backdrop-filter: blur(26px);
+      border-right: 1px solid rgba(248, 113, 113, 0.35);
+      padding: 22px 10px 20px;
+      transition: width 0.25s ease;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: inset -4px 0 20px rgba(0, 0, 0, 0.7);
+    }
+
+    .sidebar:hover { width: 240px; }
+
+    .sb-group,
+    .sb-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sb-link {
+      padding: 11px 13px;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 15px;
+      color: #fee2e2;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(248, 113, 113, 0.55);
+      transition: 0.18s ease;
+      white-space: nowrap;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.7);
+    }
+
+    .sb-link span.icon-box {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 30% 30%, #fb7185 0, #b91c1c 65%);
+      font-size: 15px;
+    }
+
+    .sb-link.active {
+      background: radial-gradient(circle at top left, rgba(248, 113, 113, 0.4), rgba(15, 23, 42, 0.95));
+      border-color: #fb7185;
+      box-shadow: 0 0 20px rgba(248, 113, 113, 0.7);
+    }
+
+    .sb-link:hover {
+      transform: translateX(4px);
+      background: radial-gradient(circle at top left, rgba(248, 113, 113, 0.35), rgba(15, 23, 42, 0.9));
+      box-shadow: 0 0 20px rgba(248, 113, 113, 0.75);
+    }
+
+    .sidebar:not(:hover) .sb-text {
+      opacity: 0;
+      width: 0;
+      overflow: hidden;
+    }
+
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 26px 34px 30px;
+    }
+
+    @media (max-width: 830px) {
+      .layout { flex-direction: column; }
+      .sidebar { display: none; }
+      .main { padding: 22px 18px 26px; }
+    }
+
+    .page-header {
+      margin-bottom: 18px;
+    }
+
+    .page-title {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #fecaca, #fb7185, #fecaca);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.03em;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-top: 5px;
+    }
+
+    .pill-row {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 4px 11px;
+      border: 1px solid rgba(254, 202, 202, 0.7);
+      background: rgba(24, 24, 27, 0.85);
+      color: #fee2e2;
+    }
+
+    /* Cards layout */
+    .grid-two {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.2fr);
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    @media (max-width: 1050px) {
+      .grid-two { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .card {
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at top left, rgba(248, 113, 113, 0.2), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.7), transparent 60%),
+        rgba(14, 8, 19, 0.97);
+      border: 1px solid var(--border-soft);
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.9),
+        0 0 30px rgba(248, 113, 113, 0.45);
+      padding: 18px 20px 20px;
+    }
+
+    .card-muted {
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85);
+      border-color: rgba(148, 163, 184, 0.4);
+      background:
+        radial-gradient(circle at top left, rgba(148, 163, 184, 0.18), transparent 55%),
+        rgba(15, 23, 42, 0.96);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #fee2e2;
+    }
+
+    .card-caption {
+      font-size: 12px;
+      color: rgba(209, 213, 219, 0.9);
+      margin-bottom: 10px;
+    }
+
+    .result-status {
+      font-size: 26px;
+      font-weight: 700;
+      margin-top: 6px;
+    }
+
+    .result-status.low {
+      color: var(--success);
+    }
+
+    .result-status.high {
+      color: var(--danger);
+    }
+
+    .prob-text {
+      margin-top: 2px;
+      font-size: 14px;
+      color: var(--accent-soft);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 3px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(254, 202, 202, 0.9);
+      background: rgba(30, 64, 175, 0.25);
+      color: #e0f2fe;
+    }
+
+    .status-pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #fbbf24;
+      box-shadow: 0 0 8px rgba(250, 204, 21, 0.95);
+    }
+
+    .status-pill.high {
+      background: rgba(185, 28, 28, 0.45);
+      color: #fee2e2;
+    }
+
+    .status-pill.high .status-pill-dot {
+      background: #f97373;
+      box-shadow: 0 0 10px rgba(248, 113, 113, 1);
+    }
+
+    .status-pill.low {
+      background: rgba(22, 163, 74, 0.45);
+      color: #f0fdf4;
+    }
+
+    .status-pill.low .status-pill-dot {
+      background: #4ade80;
+      box-shadow: 0 0 10px rgba(34, 197, 94, 1);
+    }
+
+    .pulse-wrapper {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #fee2e2;
+    }
+
+    .pulse-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #fecaca 0, #f97373 60%, #7f1d1d 100%);
+      box-shadow: 0 0 16px rgba(248, 113, 113, 0.95);
+      animation: pulse 1.3s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      50% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.8; }
+    }
+
+    .confidence-bar {
+      margin-top: 12px;
+    }
+
+    .conf-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: rgba(248, 250, 252, 0.9);
+      margin-bottom: 4px;
+    }
+
+    .conf-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #22c55e, #facc15, #f97316, #ef4444);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .conf-thumb {
+      position: absolute;
+      top: -2px;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: #f9fafb;
+      border: 2px solid #111827;
+      box-shadow: 0 0 10px rgba(249, 250, 251, 0.95);
+      transform: translateX(-50%);
+      transition: left 0.3s ease;
+    }
+
+    .table-wrapper {
+      margin-top: 10px;
+      max-height: 260px;
+      overflow: auto;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: rgba(15, 23, 42, 0.98);
+      text-align: left;
+      font-weight: 600;
+      color: #e5e7eb;
+      z-index: 1;
+    }
+
+    tr:nth-child(even) td {
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+    }
+
+    .status-chip.normal {
+      background: rgba(22, 163, 74, 0.22);
+      color: #bbf7d0;
+    }
+
+    .status-chip.high {
+      background: rgba(185, 28, 28, 0.24);
+      color: #fecaca;
+    }
+
+    .status-chip.low {
+      background: rgba(30, 64, 175, 0.24);
+      color: #bfdbfe;
+    }
+
+    .chart-container {
+      margin-top: 6px;
+      padding: 6px 4px 4px;
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      height: 260px;
+    }
+
+    .list {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #e5e7eb;
+    }
+
+    .list li {
+      margin-bottom: 4px;
+    }
+
+    .download-card {
+      margin-top: 20px;
+      border-radius: 18px;
+      padding: 14px 16px 16px;
+      background: linear-gradient(90deg, rgba(34, 197, 94, 0.15), rgba(6, 95, 70, 0.96));
+      border: 1px solid rgba(74, 222, 128, 0.7);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .download-btn {
+      padding: 9px 20px;
+      border-radius: 999px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #ecfdf5;
+      background: linear-gradient(90deg, #16a34a, #22c55e);
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.9),
+        0 0 18px rgba(74, 222, 128, 0.9);
+    }
+
+    .download-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .disclaimer {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #fee2e2;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="navbar">
+    <div class="nav-left" onclick="location.href='dashboard.html'">
+      <div class="nav-logo">❤️</div>
+      <div class="nav-title">Hybrid AI Diagnostics System</div>
+    </div>
+  </div>
+
+  <canvas id="snowCanvas"></canvas>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sb-group">
+        <div class="sb-link active" onclick="location.href='heart.html'">
+          <span class="icon-box">❤️</span>
+          <span class="sb-text">Heart Disease</span>
+        </div>
+        <div class="sb-link" onclick="location.href='diabetes.html'">
+          <span class="icon-box">💉</span>
+          <span class="sb-text">Diabetes</span>
+        </div>
+        <div class="sb-link" onclick="location.href='breast.html'">
+          <span class="icon-box">🎀</span>
+          <span class="sb-text">Breast Cancer</span>
+        </div>
+        <div class="sb-link" onclick="location.href='brain.html'">
+          <span class="icon-box">🧠</span>
+          <span class="sb-text">Brain Tumor</span>
+        </div>
+      </div>
+
+      <div class="sb-bottom">
+        <div class="sb-link" onclick="location.href='history.html'">
+          <span class="icon-box">📜</span>
+          <span class="sb-text">History</span>
+        </div>
+        <div class="sb-link" onclick="logout()">
+          <span class="icon-box">🚪</span>
+          <span class="sb-text">Logout</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main">
+      <header class="page-header">
+        <div class="page-title">Heart Risk Prediction</div>
+        <div class="page-subtitle" id="subtitleText">
+          Loading latest prediction…
+        </div>
+        <div class="pill-row">
+          <span class="pill">Mode: Hybrid ML + Rule Engine + AI Advisory</span>
+          <span class="pill">Task: Coronary Artery Disease Risk</span>
+        </div>
+      </header>
+
+      <div class="grid-two">
+        <!-- LEFT: main result & advisory -->
+        <section class="card">
+          <div class="card-title">Prediction Result</div>
+          <div class="card-caption">
+            This panel summarizes the model output for this patient’s parameters.
+          </div>
+
+          <div id="resultStatus" class="result-status">No result</div>
+          <div id="probText" class="prob-text"></div>
+
+          <div id="riskPill" class="status-pill">
+            <span class="status-pill-dot"></span>
+            <span id="statusLabel">STATUS: UNKNOWN</span>
+          </div>
+
+          <div class="pulse-wrapper">
+            <div class="pulse-dot"></div>
+            <span id="pulseText">Awaiting prediction data…</span>
+          </div>
+
+          <div class="confidence-bar">
+            <div class="conf-label-row">
+              <span>Model confidence</span>
+              <span id="confValue">-- %</span>
+            </div>
+            <div class="conf-track">
+              <div id="confThumb" class="conf-thumb" style="left: 0%;"></div>
+            </div>
+          </div>
+
+          <div style="margin-top: 16px;">
+            <div class="card-title" style="font-size: 15px;">AI Advisory</div>
+            <p id="advisoryText" style="font-size: 13px; color:#e5e7eb; margin-top:4px;">
+              Run a prediction from the heart input page to view tailored guidance.
+            </p>
+
+            <div style="margin-top: 10px;">
+              <strong style="font-size:13px;">Lifestyle recommendations:</strong>
+              <ul id="lifestyleList" class="list" style="margin-top: 4px;"></ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT: chart + table -->
+        <section class="card card-muted">
+          <div class="card-title">Key Factor Comparison</div>
+          <div class="card-caption">
+            Compares your entered heart metrics against typical reference ranges.
+          </div>
+
+          <div class="chart-container">
+            <canvas id="factorChart"></canvas>
+          </div>
+
+          <div class="table-wrapper" style="margin-top:10px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Factor</th>
+                  <th>Your Value</th>
+                  <th>Normal Range</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="factorTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- Bottom: positivity + download -->
+      <section class="card" style="margin-top: 18px;">
+        <div class="card-title" id="outlookTitle">
+          Outlook summary
+        </div>
+        <div class="card-caption" id="outlookText">
+          Interpretation of your risk and general next-step suggestions.
+        </div>
+        <ul id="outlookList" class="list"></ul>
+
+        <div class="download-card" style="margin-top:16px;">
+          <div>
+            <div style="font-weight:600; margin-bottom:3px;">Download detailed PDF report</div>
+            <div style="font-size:12px; color:#d1fae5;">
+              Includes your inputs, model explanation, feature comparison table, and advisory text.
+            </div>
+          </div>
+          <button id="downloadBtn" class="download-btn" disabled>
+            ⬇ Download PDF Report
+          </button>
+        </div>
+
+        <div class="disclaimer">
+          Disclaimer: This system provides AI-generated risk estimates and lifestyle suggestions.
+          It is not a replacement for professional medical diagnosis. Please consult a qualified
+          healthcare provider for any symptoms or concerns.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const BACKEND = "http://127.0.0.1:8000";
+    
+    /* ===========================================
+       LOAD RESULT FIRST (IMPORTANT!)
+    =========================================== */
+    const raw = localStorage.getItem("heartResult");
+    
+    if (!raw) {
+      location.href = "heart.html";
+    }
+    
+    let root = null;
+    let backend = null;
+    let inputs = null;
+    
+    try {
+      root = JSON.parse(raw);
+    } catch (e) {
+      console.error("Invalid heartResult JSON:", e);
+      location.href = "heart.html";
+    }
+    
+    /* Support both response formats:
+       - direct: {label, probability, ...}
+       - structured: { backend: {...}, inputs: {...} }
+    */
+    backend = root.backend || root;
+    inputs = root.inputs || {};
+    
+    
+    /* ===========================================
+       AUTH CHECK (AFTER result load!)
+    =========================================== */
+    async function checkAuth() {
+      const token = localStorage.getItem("token");
+      if (!token) return location.href = "login.html";
+    
+      try {
+        const r = await fetch(BACKEND + "/auth/me", {
+          headers: { Authorization: "Bearer " + token },
+        });
+    
+        if (!r.ok) {
+          localStorage.removeItem("token");
+          location.href = "login.html";
+        }
+      } catch (e) {
+        localStorage.removeItem("token");
+        location.href = "login.html";
+      }
+    }
+    checkAuth();
+    
+    function logout() {
+      localStorage.removeItem("token");
+      location.href = "login.html";
+    }
+    
+    
+    /* ===========================================
+       SNOW BACKGROUND
+    =========================================== */
+    const snowCanvas = document.getElementById("snowCanvas");
+    const sctx = snowCanvas.getContext("2d");
+    
+    function resizeSnow() {
+      snowCanvas.width = window.innerWidth;
+      snowCanvas.height = window.innerHeight;
+    }
+    resizeSnow();
+    window.addEventListener("resize", resizeSnow);
+    
+    const flakes = Array.from({ length: 160 }, () => ({
+      x: Math.random() * innerWidth,
+      y: Math.random() * innerHeight,
+      r: Math.random() * 2 + 1,
+      v: Math.random() * 0.7 + 0.3,
+    }));
+    
+    (function animateSnow() {
+      sctx.clearRect(0,0,innerWidth,innerHeight);
+      sctx.fillStyle = "rgba(255,255,255,0.9)";
+      flakes.forEach(f => {
+        sctx.beginPath();
+        sctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        sctx.fill();
+        f.y += f.v;
+        if (f.y > innerHeight) {
+          f.y = -5;
+          f.x = Math.random() * innerWidth;
+        }
+      });
+      requestAnimationFrame(animateSnow);
+    })();
+    
+    
+    /* ===========================================
+       DOM ELEMENTS
+    =========================================== */
+    const subtitleText = document.getElementById("subtitleText");
+    const resultStatusEl = document.getElementById("resultStatus");
+    const probTextEl = document.getElementById("probText");
+    const riskPillEl = document.getElementById("riskPill");
+    const statusLabelEl = document.getElementById("statusLabel");
+    const pulseTextEl = document.getElementById("pulseText");
+    const confValueEl = document.getElementById("confValue");
+    const confThumbEl = document.getElementById("confThumb");
+    const advisoryTextEl = document.getElementById("advisoryText");
+    const lifestyleListEl = document.getElementById("lifestyleList");
+    const factorTableBody = document.getElementById("factorTableBody");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const outlookTitle = document.getElementById("outlookTitle");
+    const outlookText = document.getElementById("outlookText");
+    const outlookList = document.getElementById("outlookList");
+    
+    let chartInstance = null;
+    
+    
+    /* ===========================================
+       HELPERS
+    =========================================== */
+    function confidenceBucket(prob) {
+      const pct = prob * 100;
+      if (pct >= 90) return "Very High";
+      if (pct >= 75) return "High";
+      if (pct >= 55) return "Medium";
+      return "Low";
+    }
+    
+    function buildChart(comparisons) {
+      const ctx = document.getElementById("factorChart").getContext("2d");
+    
+      const labels = comparisons.map(c => c.feature);
+      const user = comparisons.map(c => Number(c.user_value ?? 0));
+      const maxv = comparisons.map(c => Number(c.normal_max ?? c.user_value ?? 0));
+    
+      if (chartInstance) chartInstance.destroy();
+    
+      chartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Normal Max",
+              data: maxv,
+              backgroundColor: "#fde047",
+            },
+            {
+              label: "Your Value",
+              data: user,
+              backgroundColor: "#60a5fa",
+            },
+          ],
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: "#e5e7eb" } },
+          },
+          scales: {
+            x: { ticks: { color: "#e5e7eb" } },
+            y: { ticks: { color: "#e5e7eb" } },
+          },
+        },
+      });
+    }
+    
+    function renderTable(rows) {
+      factorTableBody.innerHTML = "";
+    
+      rows.forEach(c => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${c.feature}</td>
+          <td>${c.user_value}</td>
+          <td>${c.normal_min ?? "—"} – ${c.normal_max ?? "—"}</td>
+          <td><span class="status-chip ${c.status?.toLowerCase()}">${c.status || "Normal"}</span></td>
+        `;
+        factorTableBody.appendChild(tr);
+      });
+    }
+    
+    
+    /* ===========================================
+       RENDER RESULT
+    =========================================== */
+    function renderResult() {
+    
+      const label = backend.label || "Unknown";
+      const prob = Number(backend.probability || 0);
+      const pct = (prob * 100).toFixed(1);
+    
+      const lower = label.toLowerCase();
+      const isHigh = lower.includes("high") || (backend.urgency || "").toLowerCase() === "high";
+    
+      // Title + label
+      resultStatusEl.textContent = label;
+      resultStatusEl.classList.toggle("high", isHigh);
+      resultStatusEl.classList.toggle("low", !isHigh);
+    
+      subtitleText.textContent =
+        "Model output combined with rule-engine and personalized risk factors.";
+    
+      probTextEl.textContent = `${pct}% estimated probability`;
+    
+      // Status
+      statusLabelEl.textContent = isHigh
+        ? "STATUS: ELEVATED RISK"
+        : "STATUS: LOW RISK";
+    
+      riskPillEl.classList.toggle("high", isHigh);
+      riskPillEl.classList.toggle("low", !isHigh);
+    
+      pulseTextEl.textContent = isHigh
+        ? "Elevated risk detected — consider consulting a cardiologist."
+        : "Low risk — maintain heart-healthy lifestyle.";
+    
+      // Confidence bar
+      confValueEl.textContent = `${pct}% (${confidenceBucket(prob)})`;
+      confThumbEl.style.left = `${Math.min(100, Math.max(0, prob * 100))}%`;
+    
+      // Advisory text
+      advisoryTextEl.textContent =
+        backend.suggestion_text ||
+        backend.rule_base ||
+        "No advisory available.";
+    
+      // Lifestyle
+      lifestyleListEl.innerHTML = "";
+      (backend.lifestyle_recommendations || []).forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        lifestyleListEl.appendChild(li);
+      });
+    
+      // Outlook
+      outlookTitle.textContent = isHigh
+        ? "Cautious Outlook: High Heart Risk"
+        : "Positive Outlook: Low Heart Risk";
+    
+      outlookText.textContent = isHigh
+        ? "These steps can reduce your heart risk:"
+        : "Maintain these habits for a healthy heart:";
+    
+      const points = isHigh
+        ? [
+            "Consult a cardiologist for further evaluation.",
+            "Eat a low-salt, heart-friendly diet.",
+            "Walk/exercise at least 30 minutes daily.",
+            "Monitor BP, cholesterol, and glucose regularly.",
+          ]
+        : [
+            "Continue exercising regularly.",
+            "Maintain a balanced diet.",
+            "Avoid smoking or excessive alcohol.",
+          ];
+    
+      outlookList.innerHTML = "";
+      points.forEach(p => {
+        const li = document.createElement("li");
+        li.textContent = p;
+        outlookList.appendChild(li);
+      });
+    
+      // Table + chart
+      const comparisons = backend.comparisons || [];
+      if (comparisons.length) {
+        renderTable(comparisons);
+    
+        const abnormal = comparisons.filter(c =>
+          ["high","low"].includes((c.status || "").toLowerCase())
+        );
+    
+        if (abnormal.length) {
+          buildChart(abnormal);
+        }
+      }
+    
+      // Download report
+      if (backend.report_url) {
+        downloadBtn.disabled = false;
+        downloadBtn.onclick = () =>
+          window.open(BACKEND + backend.report_url, "_blank");
+      } else {
+        downloadBtn.disabled = true;
+      }
+    }
+    
+    renderResult();
+    </script>
+</body>
+</html>    

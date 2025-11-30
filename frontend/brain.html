@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Brain MRI – AI Diagnostics</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    :root {
+      --bg-deep: #020014;
+      --bg-top: #1d0030;
+      --card-bg: rgba(15, 6, 32, 0.98);
+      --border-soft: rgba(191, 219, 254, 0.55);
+
+      --tumor-main: #7c3aed;
+      --tumor-soft: #a855f7;
+      --tumor-glow: rgba(168, 85, 247, 0.9);
+
+      --normal-main: #22c55e;
+      --normal-soft: #4ade80;
+      --normal-glow: rgba(34, 197, 94, 0.9);
+
+      --success: #22c55e;
+      --warning: #facc15;
+      --danger: #ef4444;
+
+      --text-main: #e5ecff;
+      --text-soft: #c7d2fe;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+      background: radial-gradient(circle at top, #4c1d95 0, #020016 55%, #020012 100%);
+      color: var(--text-main);
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    /* Snow / star canvas */
+    #snowCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      pointer-events: none;
+      filter: blur(1px);
+    }
+
+    /* NAVBAR */
+    .navbar {
+      width: 100%;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 10px 26px;
+      background: linear-gradient(90deg, rgba(24, 0, 45, 0.96), rgba(76, 29, 149, 0.96));
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(129, 140, 248, 0.6);
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
+    }
+
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+    }
+
+    .nav-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: radial-gradient(circle at 30% 30%, #bfdbfe 0, #6366f1 45%, #020024 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 22px;
+      box-shadow: 0 0 18px rgba(129, 140, 248, 0.95);
+    }
+
+    .nav-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #e0e7ff;
+    }
+
+    /* LAYOUT */
+    .layout {
+      display: flex;
+      height: 100vh;
+      margin-top: 64px;
+      position: relative;
+      z-index: 5;
+    }
+
+    /* SIDEBAR */
+    .sidebar {
+      width: 80px;
+      height: calc(100vh - 64px);
+      background: radial-gradient(circle at top, #1e1b4b 0, #020012 55%);
+      backdrop-filter: blur(24px);
+      border-right: 1px solid rgba(129, 140, 248, 0.5);
+      padding: 22px 10px 20px;
+      transition: width 0.25s ease;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: inset -4px 0 22px rgba(0, 0, 0, 0.8);
+    }
+
+    .sidebar:hover { width: 240px; }
+
+    .sb-group,
+    .sb-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sb-link {
+      padding: 11px 13px;
+      border-radius: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 15px;
+      color: #e0e7ff;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(129, 140, 248, 0.7);
+      transition: 0.18s ease;
+      white-space: nowrap;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.8);
+    }
+
+    .sb-link span.icon-box {
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 30% 30%, #6366f1 0, #4c1d95 70%);
+      font-size: 15px;
+    }
+
+    .sb-link.active {
+      background: radial-gradient(circle at top left, rgba(129, 140, 248, 0.45), rgba(15, 23, 42, 0.98));
+      border-color: #818cf8;
+      box-shadow: 0 0 22px rgba(129, 140, 248, 0.95);
+    }
+
+    .sb-link:hover {
+      transform: translateX(4px);
+      background: radial-gradient(circle at top left, rgba(129, 140, 248, 0.4), rgba(15, 23, 42, 0.96));
+      box-shadow: 0 0 22px rgba(129, 140, 248, 0.95);
+    }
+
+    .sidebar:not(:hover) .sb-text {
+      opacity: 0;
+      width: 0;
+      overflow: hidden;
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 26px 34px 30px;
+    }
+
+    @media (max-width: 830px) {
+      .layout { flex-direction: column; }
+      .sidebar { display: none; }
+      .main { padding: 22px 18px 26px; }
+    }
+
+    .page-header { margin-bottom: 18px; }
+
+    .page-title {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #e0f2fe, #a5b4fc, #c4b5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-top: 5px;
+    }
+
+    .pill-row {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 4px 11px;
+      border: 1px solid rgba(191, 219, 254, 0.75);
+      background: rgba(15, 23, 42, 0.9);
+      color: #dbeafe;
+    }
+
+    /* GRID */
+    .grid-two {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.2fr);
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    @media (max-width: 1050px) {
+      .grid-two { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    /* CARD */
+    .card {
+      border-radius: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(129, 140, 248, 0.25), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.96), transparent 60%),
+        rgba(15, 23, 42, 0.96);
+      border: 1px solid var(--border-soft);
+      box-shadow:
+        0 22px 60px rgba(0, 0, 0, 0.95),
+        0 0 26px rgba(129, 140, 248, 0.45);
+      padding: 18px 20px 20px;
+    }
+
+    .card-muted {
+      border-color: rgba(148, 163, 184, 0.6);
+      background:
+        radial-gradient(circle at top left, rgba(148, 163, 184, 0.22), transparent 55%),
+        rgba(15, 23, 42, 0.98);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.9);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #e5ecff;
+    }
+
+    .card-caption {
+      font-size: 12px;
+      color: rgba(191, 219, 254, 0.9);
+      margin-bottom: 10px;
+    }
+
+    /* UPLOAD */
+    .upload-box {
+      margin-top: 12px;
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px dashed rgba(129, 140, 248, 0.8);
+      background: radial-gradient(circle at top left, rgba(129, 140, 248, 0.18), transparent 55%),
+        rgba(15, 23, 42, 0.9);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    .upload-box input[type="file"] {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #e5e7eb;
+    }
+
+    .preview-img {
+      width: 260px;
+      height: 260px;
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      background: radial-gradient(circle at top, #020617 0, #020617 100%);
+      object-fit: cover;
+      margin: 14px auto 6px;
+      display: none;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+    }
+
+    .btn-primary {
+      margin-top: 10px;
+      padding: 11px 22px;
+      border-radius: 999px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #f9fafb;
+      background: linear-gradient(90deg, #4f46e5, #6366f1, #8b5cf6);
+      box-shadow:
+        0 18px 35px rgba(0, 0, 0, 0.9),
+        0 0 18px rgba(129, 140, 248, 0.9);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow:
+        0 22px 40px rgba(15, 23, 42, 0.95),
+        0 0 22px rgba(129, 140, 248, 1);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* RESULT STATUS */
+    .result-status {
+      font-size: 28px;
+      font-weight: 700;
+      margin-top: 6px;
+      opacity: 0;
+      transform: translateY(4px) scale(0.97);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .result-status.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .result-status.tumor {
+      color: var(--tumor-soft);
+      text-shadow: 0 0 18px var(--tumor-glow);
+    }
+
+    .result-status.normal {
+      color: var(--normal-soft);
+      text-shadow: 0 0 18px var(--normal-glow);
+    }
+
+    .prob-text {
+      margin-top: 4px;
+      font-size: 14px;
+      color: #bfdbfe;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 4px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid rgba(219, 234, 254, 0.9);
+      color: #eff6ff;
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .status-pill-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #facc15;
+      box-shadow: 0 0 8px rgba(250, 204, 21, 0.95);
+    }
+
+    .status-pill.tumor {
+      background: rgba(88, 28, 135, 0.8);
+      border-color: rgba(168, 85, 247, 0.95);
+    }
+
+    .status-pill.tumor .status-pill-dot {
+      background: #f97316;
+      box-shadow: 0 0 10px rgba(249, 115, 22, 1);
+    }
+
+    .status-pill.normal {
+      background: rgba(15, 118, 110, 0.6);
+      border-color: rgba(45, 212, 191, 0.95);
+    }
+
+    .status-pill.normal .status-pill-dot {
+      background: #4ade80;
+      box-shadow: 0 0 10px rgba(74, 222, 128, 1);
+    }
+
+    .urgency-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 10px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid rgba(148, 163, 184, 0.9);
+      color: #e5e7eb;
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .urgency-pill.high {
+      border-color: rgba(248, 113, 113, 0.95);
+      background: rgba(127, 29, 29, 0.9);
+      color: #fee2e2;
+    }
+
+    .urgency-pill.medium {
+      border-color: rgba(251, 191, 36, 0.95);
+      background: rgba(113, 63, 18, 0.9);
+      color: #fef3c7;
+    }
+
+    .urgency-pill.low {
+      border-color: rgba(34, 197, 94, 0.95);
+      background: rgba(20, 83, 45, 0.9);
+      color: #bbf7d0;
+    }
+
+    .pulse-wrapper {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: #e5ecff;
+    }
+
+    .pulse-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #e0f2fe 0, #6366f1 60%, #111827 100%);
+      box-shadow: 0 0 18px rgba(129, 140, 248, 1);
+      animation: pulse 1.3s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      50% { transform: scale(1.08); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.8; }
+    }
+
+    /* CONFIDENCE BAR */
+    .confidence-bar {
+      margin-top: 14px;
+    }
+
+    .conf-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: rgba(226, 232, 240, 0.95);
+      margin-bottom: 4px;
+    }
+
+    .conf-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #22c55e, #facc15, #fb923c, #ef4444);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .conf-thumb {
+      position: absolute;
+      top: -3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 999px;
+      background: #f9fafb;
+      border: 2px solid #020617;
+      box-shadow: 0 0 12px rgba(248, 250, 252, 0.95);
+      transform: translateX(-50%);
+      transition: left 0.25s ease;
+    }
+
+    /* AI ADVISORY LISTS */
+    .list {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #e5e7eb;
+      padding-left: 18px;
+    }
+
+    .list li { margin-bottom: 4px; }
+
+    /* GRAD-CAM WRAP */
+    .mri-box {
+      border-radius: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 55%),
+        rgba(15, 23, 42, 0.98);
+      padding: 12px 12px 14px;
+      font-size: 12px;
+      color: #cbd5f5;
+    }
+
+    .mri-box h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #e5ecff;
+    }
+
+    .mri-img-wrap {
+      margin-top: 8px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.9);
+      background: #020617;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 260px;
+      max-height: 360px;
+    }
+
+    .mri-img {
+      max-width: 100%;
+      max-height: 360px;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* BOTTOM CARD */
+    .download-card {
+      margin-top: 16px;
+      border-radius: 18px;
+      padding: 12px 14px 14px;
+      background: linear-gradient(90deg, rgba(30, 64, 175, 0.3), rgba(56, 189, 248, 0.9));
+      border: 1px solid rgba(129, 140, 248, 0.9);
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.95);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .download-btn {
+      padding: 9px 20px;
+      border-radius: 999px;
+      border: none;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #f9fafb;
+      background: linear-gradient(90deg, #22c55e, #4ade80);
+      box-shadow:
+        0 16px 36px rgba(0, 0, 0, 0.9),
+        0 0 18px rgba(74, 222, 128, 0.95);
+    }
+
+    .download-btn:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .disclaimer {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #e2e8f0;
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body>
+  <!-- NAVBAR -->
+  <div class="navbar">
+    <div class="nav-left" onclick="location.href='dashboard.html'">
+      <div class="nav-logo">🧠</div>
+      <div class="nav-title">Hybrid AI Diagnostics System</div>
+    </div>
+  </div>
+
+  <!-- Snow / stars -->
+  <canvas id="snowCanvas"></canvas>
+
+  <div class="layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sb-group">
+        <div class="sb-link" onclick="location.href='heart.html'">
+          <span class="icon-box">❤️</span>
+          <span class="sb-text">Heart Disease</span>
+        </div>
+        <div class="sb-link" onclick="location.href='diabetes.html'">
+          <span class="icon-box">💉</span>
+          <span class="sb-text">Diabetes</span>
+        </div>
+        <div class="sb-link" onclick="location.href='breast.html'">
+          <span class="icon-box">🎗️</span>
+          <span class="sb-text">Breast Cancer</span>
+        </div>
+        <div class="sb-link active" onclick="location.href='brain.html'">
+          <span class="icon-box">🧠</span>
+          <span class="sb-text">Brain Tumor</span>
+        </div>
+      </div>
+
+      <div class="sb-bottom">
+        <div class="sb-link" onclick="location.href='history.html'">
+          <span class="icon-box">📜</span>
+          <span class="sb-text">History</span>
+        </div>
+        <div class="sb-link" onclick="logout()">
+          <span class="icon-box">🚪</span>
+          <span class="sb-text">Logout</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+      <header class="page-header">
+        <div class="page-title">
+          Brain MRI · Tumor Detection
+        </div>
+        <div class="page-subtitle" id="subtitleText">
+          Upload an MRI scan and view the AI-driven tumor prediction with Grad-CAM focus map.
+        </div>
+        <div class="pill-row">
+          <span class="pill">Model: MobileNetV3 · Brain MRI</span>
+          <span class="pill">Task: Brain Tumor vs No Tumor</span>
+          <span class="pill">Pipeline: CNN · Grad-CAM · Rule Engine · GPT-2 Advisory</span>
+        </div>
+      </header>
+
+      <div class="grid-two">
+        <!-- LEFT: Upload -->
+        <section class="card card-muted">
+          <div class="card-title">Upload MRI Image</div>
+          <div class="card-caption">
+            Supported format: typical MRI slices (PNG / JPG). The model was trained on 224 × 224 grayscale scans.
+          </div>
+
+          <div class="upload-box">
+            <div>Choose a brain MRI slice image from your device.</div>
+            <input
+              type="file"
+              id="brainFile"
+              accept="image/*"
+              onchange="previewBrainImage()"
+            />
+            <img id="brainPreview" class="preview-img" alt="Brain MRI preview" />
+            <button id="predictBtn" class="btn-primary" onclick="predictBrain()">
+              🔍 Analyze MRI
+            </button>
+          </div>
+        </section>
+
+        <!-- RIGHT: Result -->
+        <section class="card">
+          <div class="card-title">Prediction Result</div>
+          <div class="card-caption">
+            Combined output from the CNN model and rule-based advisory system for this MRI scan.
+          </div>
+
+          <div id="resultStatus" class="result-status">No prediction yet</div>
+          <div id="probText" class="prob-text">Upload an MRI and click “Analyze MRI”.</div>
+
+          <div style="margin-top: 6px;">
+            <span id="riskPill" class="status-pill">
+              <span class="status-pill-dot"></span>
+              <span id="statusLabel">STATUS: UNKNOWN</span>
+            </span>
+            <span id="urgencyPill" class="urgency-pill low">
+              Urgency: low
+            </span>
+          </div>
+
+          <div class="pulse-wrapper">
+            <div class="pulse-dot"></div>
+            <span id="pulseText">System is idle. Upload an MRI to start analysis.</span>
+          </div>
+
+          <!-- Confidence bar -->
+          <div class="confidence-bar">
+            <div class="conf-label-row">
+              <span id="confLabelText">Model confidence</span>
+              <span id="confValue">-- %</span>
+            </div>
+            <div class="conf-track">
+              <div id="confThumb" class="conf-thumb" style="left: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- AI Advisory -->
+          <div style="margin-top: 18px;">
+            <div class="card-title" style="font-size: 15px;">AI Explanation & Advisory</div>
+            <p id="advisoryText"
+               style="font-size: 13px; color:#e5e7eb; margin-top:4px;">
+              Once a scan is analyzed, this section will summarize the AI reasoning and care suggestions in clinical style.
+            </p>
+
+            <div style="margin-top: 10px;">
+              <strong style="font-size:13px;">Lifestyle & follow-up suggestions:</strong>
+              <ul id="lifestyleList" class="list" style="margin-top: 4px;"></ul>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Grad-CAM large card -->
+      <section class="card" style="margin-bottom: 18px;">
+        <div class="card-title">Model Focus Map (Grad-CAM)</div>
+        <div class="card-caption">
+          The heatmap highlights regions the CNN considered most important for this prediction. 
+          Areas with higher intensity colors contributed more strongly.
+        </div>
+
+        <div class="mri-box">
+          <h4>Heatmap Overlay</h4>
+          <p>Rendered directly from the trained brain tumor CNN for this specific input MRI.</p>
+          <div class="mri-img-wrap">
+            <img id="gradcamImg" class="mri-img" alt="Grad-CAM heatmap preview" />
+          </div>
+        </div>
+      </section>
+
+      <!-- BOTTOM: Outlook + Download -->
+      <section class="card" style="margin-top: 4px;">
+        <div class="card-title" id="outlookTitle">
+          Outlook summary
+        </div>
+        <div class="card-caption" id="outlookText">
+          Interpretation of your brain MRI prediction and suggested next steps.
+        </div>
+        <ul id="outlookList" class="list"></ul>
+
+        <div class="download-card">
+          <div>
+            <div style="font-weight:600; margin-bottom:3px;">Download detailed PDF report</div>
+            <div style="font-size:12px; color:#e0f2fe;">
+              Includes prediction details, Grad-CAM snapshot, and AI advisory text in a printable format.
+            </div>
+          </div>
+          <button id="downloadBtn" class="download-btn" disabled>
+            ⬇ Download PDF Report
+          </button>
+        </div>
+
+        <div class="disclaimer">
+          Disclaimer: This system provides AI-generated estimates and suggestions
+          based on your uploaded MRI. It is <strong>not</strong> a confirmed diagnosis
+          or a replacement for consultation with a neurologist or neurosurgeon.
+          Always follow the advice of your healthcare provider.
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const BACKEND = "http://127.0.0.1:8000";
+    
+    /* ========== AUTH CHECK ========== */
+    async function ensureAuth() {
+        const token = localStorage.getItem("token");
+        if (!token) {
+            console.log("NO TOKEN → REDIRECT");
+            return (location.href = "login.html");
+        }
+    
+        try {
+            const r = await fetch(BACKEND + "/auth/me", {
+                headers: { "Authorization": "Bearer " + token }
+            });
+    
+            console.log("AUTH STATUS →", r.status);
+    
+            if (!r.ok) {
+                console.log("AUTH FAILED → SENDING TO LOGIN");
+                return (location.href = "login.html");
+            }
+        } catch (err) {
+            console.log("AUTH ERROR:", err);
+            return (location.href = "login.html");
+        }
+    }
+    
+    /* ========== LOGOUT ========== */
+    function logout() {
+        localStorage.removeItem("token");
+        location.href = "login.html";
+    }
+    
+    /* ========== PREVIEW ========== */
+    function previewBrainImage() {
+        const file = document.getElementById("brainFile").files[0];
+        const img = document.getElementById("brainPreview");
+        if (file) {
+            img.src = URL.createObjectURL(file);
+            img.style.display = "block";
+        }
+    }
+    
+    /* ========== PREDICT BRAIN ========== */
+    async function predictBrain() {
+        console.log("🧠 predictBrain() called");
+    
+        const file = document.getElementById("brainFile").files[0];
+        if (!file) {
+            alert("Please upload an MRI image first.");
+            return;
+        }
+    
+        const token = localStorage.getItem("token");
+        if (!token) {
+            return (location.href = "login.html");
+        }
+    
+        const fd = new FormData();
+        fd.append("file", file);
+    
+        const btn = document.getElementById("predictBtn");
+        btn.disabled = true;
+        btn.innerText = "Analyzing…";
+    
+        let res, out;
+    
+        try {
+            res = await fetch(BACKEND + "/predict/brain", {
+                method: "POST",
+                headers: { Authorization: "Bearer " + token },
+                body: fd
+            });
+    
+            console.log("🔵 RESPONSE STATUS:", res.status);
+    
+            // ✅ Use res.json() directly (simpler + safe)
+            out = await res.json();
+            console.log("🟢 PARSED JSON:", out);
+    
+        } catch (err) {
+            console.error("❌ FETCH / JSON ERROR:", err);
+            alert("Network / server error.");
+            btn.disabled = false;
+            btn.innerText = "🔍 Analyze MRI";
+            return;
+        }
+    
+        btn.disabled = false;
+        btn.innerText = "🔍 Analyze MRI";
+    
+        if (!res.ok) {
+            alert(out.detail || "Prediction failed.");
+            return;
+        }
+    
+        // SAVE & DISPLAY OUTPUT
+        try {
+            localStorage.setItem("brainResult", JSON.stringify(out));
+        } catch (e) {
+            console.warn("Failed to save brainResult:", e);
+        }
+    
+        // Debug popup one time – you can remove later if you want
+        alert("Prediction Received:\n" + JSON.stringify(out, null, 2));
+    
+        renderBrainResult(out);
+    }
+    
+    /* ========== RENDER RESULT ========== */
+    function renderBrainResult(r) {
+        console.log("🔵 renderBrainResult() CALLED WITH:", r);
+    
+        if (!r) return;
+    
+        const pct = (Number(r.probability) * 100).toFixed(1);
+    
+        // Main status
+        document.getElementById("resultStatus").innerText = r.label || "No label";
+        document.getElementById("resultStatus").classList.add("show");
+        document.getElementById("probText").innerText = pct + "%";
+    
+        // Urgency pill
+        const urgency = (r.urgency || "low").toLowerCase();
+        const upill = document.getElementById("urgencyPill");
+        upill.innerText = "Urgency: " + urgency;
+        upill.className = "urgency-pill " + urgency;
+    
+        // Confidence bar
+        document.getElementById("confValue").innerText = pct + "%";
+        document.getElementById("confThumb").style.left = pct + "%";
+    
+        // Advisory text (GPT-2 + rules)
+        document.getElementById("advisoryText").innerText =
+            r.suggestion_text || "No advisory available.";
+    
+        // Lifestyle recommendations
+        const list = document.getElementById("lifestyleList");
+        list.innerHTML = "";
+        (r.lifestyle_recommendations || []).forEach((x) => {
+            const li = document.createElement("li");
+            li.innerText = x;
+            list.appendChild(li);
+        });
+    
+        // Grad-CAM image
+        if (r.gradcam_url) {
+            document.getElementById("gradcamImg").src = BACKEND + r.gradcam_url;
+        }
+    
+        // PDF download
+        if (r.report_url) {
+            const btn = document.getElementById("downloadBtn");
+            btn.disabled = false;
+            btn.onclick = () => window.open(BACKEND + r.report_url, "_blank");
+        }
+    }
+    
+    /* ========== SNOW ========== */
+    function startSnow() {
+        const c = document.getElementById("snowCanvas");
+        if (!c) return;
+        const ctx = c.getContext("2d");
+    
+        function resize() {
+            c.width = innerWidth;
+            c.height = innerHeight;
+        }
+        resize();
+        addEventListener("resize", resize);
+    
+        const flakes = Array.from({ length: 120 }, () => ({
+            x: Math.random() * innerWidth,
+            y: Math.random() * innerHeight,
+            r: Math.random() * 2 + 1,
+            v: Math.random() * 0.7 + 0.4,
+        }));
+    
+        (function loop() {
+            ctx.clearRect(0, 0, c.width, c.height);
+            ctx.fillStyle = "rgba(255,255,255,0.8)";
+            flakes.forEach((f) => {
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+                ctx.fill();
+                f.y += f.v;
+                if (f.y > innerHeight) {
+                    f.y = -5;
+                    f.x = Math.random() * innerWidth;
+                }
+            });
+            requestAnimationFrame(loop);
+        })();
+    }
+    
+    /* ========== INIT ========== */
+    document.addEventListener("DOMContentLoaded", async () => {
+        console.log("🧠 brain.html LOADED");
+    
+        await ensureAuth();
+        startSnow();
+    
+        // Try to restore last result if present
+        const saved = localStorage.getItem("brainResult");
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                console.log("Restoring saved brainResult:", parsed);
+                renderBrainResult(parsed);
+            } catch (e) {
+                console.warn("Saved brainResult is corrupted, clearing it.", e);
+                localStorage.removeItem("brainResult");
+            }
+        }
+    });
+    </script>
+    
+    
+</body></html>    
