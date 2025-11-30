@@ -8,10 +8,6 @@ __pycache__/
 # Database file
 backend/diagnostics.db
 
-# Generated images & temp stuff
-backend/reports/
-backend/gradcam/
-backend/temp/
 
 # Build caches
 *.pyc
